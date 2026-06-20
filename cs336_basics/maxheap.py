@@ -11,6 +11,7 @@ class MaxNode:
             return self.count > other.count
         return self.pair > other.pair
 
+
 class PairMaxHeap:
     def __init__(self, pair_counts):
         self.pair_counts = pair_counts
@@ -27,10 +28,8 @@ class PairMaxHeap:
                 del self.pair_counts[pair]
 
     def get_best(self):
-        while(self.heap):
+        while self.heap:
             best = heapq.heappop(self.heap)
             if best.count == self.pair_counts.get(best.pair):
                 return best.pair
-        return None    
-                       
-
+        return None
