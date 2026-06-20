@@ -3,12 +3,12 @@ from collections import Counter
 Pair = tuple[bytes, bytes]
 
 # Converts string to tuple of bytes
-def to_bytes(string: [str]) -> tuple[bytes]:
+def to_bytes(string: str) -> tuple[bytes, ...]:
 	return tuple(bytes([b]) for b in bytes(string, encoding='utf-8'))
-	
+
 class Word:
-	# Word contains bytes tokens and frequency of its appearance 
-	def __init__(self, string: [str], freq: int = 1) -> None:
+	# Word contains bytes tokens and frequency of its appearance
+	def __init__(self, string: str, freq: int = 1) -> None:
 		self.tokens = to_bytes(string)
 		self.freq = freq
 
@@ -29,7 +29,7 @@ class Word:
 					updates[(prev, ab)] += self.freq
 				updates[pair] -= self.freq
 				new_tokens.append(ab)
-				
+
 				while self.found_at(i + 2, pair):
 					updates[(ab, ab)] += self.freq
 					updates[(a, b)] -= self.freq
@@ -39,7 +39,7 @@ class Word:
 
 				look = i + 2
 				if look < len(self.tokens) :
-					nxt = self.tokens[look] 
+					nxt = self.tokens[look]
 					updates[(b, nxt)] -= self.freq
 					updates[(ab, nxt)] += self.freq
 				i += 2
@@ -49,6 +49,3 @@ class Word:
 
 		self.tokens = tuple(new_tokens)
 		return updates
-				
-
-                
