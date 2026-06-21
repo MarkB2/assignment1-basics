@@ -2,6 +2,7 @@ import regex as re
 from dataclasses import dataclass, field
 from collections import Counter
 from collections.abc import Iterator
+from typing import Self
 from .tokens import Word
 
 GPT4_PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
@@ -32,11 +33,11 @@ class Reader:
       self.corpus = corpus
 
   @classmethod
-  def from_string(cls, string: str, pat: Pattern): # -> Reader:
+  def from_string(cls, string: str, pat: Pattern) -> Self:
     return cls(Counter(string_reader(string, pat)))
 
   @classmethod
-  def from_file(cls, path: str, pat: Pattern): # -> Reader:
+  def from_file(cls, path: str, pat: Pattern) -> Self:
     return cls(Counter(file_reader(path, pat)))
 
   def get_corpus(self) -> list[Word]:
