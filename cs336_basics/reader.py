@@ -22,11 +22,45 @@ class Pattern:
     exclude = "|".join([re.escape(b) for b in self.special_tokens])
     self.compiled = re.compile(rf"({exclude})|({self.pat})")
 
+def choose_num_chunks(file_size: int, max_chunk_size: int = 50 * 1024 * 1024) -> int:
+  return max(1, -(-file_size // max_chunk_size))  # ceil div, no cpu cap needed
+
+def find_chunk_boundaries(file, special_token: bytes = b"<|endoftext|>"):
+    file.seek(0, 2)
+    file_size = file.tell()
+    num_chunks = choose_num_chunks(file_size)
+    chunk_size = file_size // num_chunks
+
+    boundaries = [i * chunk_size for i in range(num_chunks + 1)]
+    boundaries[-1] = file_size
+
+    for i in range(1, len(boundaries) - 1):
+        pos = boundaries[i]
+        file.seek(pos)
+        # read forward in a small window until we find the special token
+        window = 4096
+        while True:
+            chunk = file.read(window)
+            if not chunk:
+                boundaries[i] = file_size
+                break
+            found = chunk.find(special_token)
+            if found != -1:
+                boundaries[i] = pos + found
+                break
+            pos += window
+            file.seek(pos)
+
+    return sorted(set(boundaries))
+
 def reader(source: str | Path, pat: Pattern) -> Iterator[str]:
   if isinstance(source, Path):
-    with open(source, encoding='utf-8') as file:
-      for line in file:
-        yield from reader(line, pat)
+    with open(source, 'rb') as file:
+      boundaries = find_chunk_boundaries(file)
+      for start, end in zip(boundaries, boundaries[1:]):
+        file.seek(start)
+        chunk_bytes = file.read(end - start)
+        yield from reader(chunk_bytes.decode('utf-8', errors='ignore'), pat)
   else:
     for  match in pat.compiled.finditer(source):
       if match.group(2):
@@ -37,13 +71,17 @@ class Reader:
     self.source = source
     self.pat = pat
 
+  @classmethod
+  def get_counts(cls, words: list[Word]) -> tuple[PairCount, PairLoc]:
+    pair_counts, pair_locs = Counter(), defaultdict(set)
+    for loc, word in enumerate(words):
+      for pair in word.pairs():
+        pair_counts[pair] += word.freq
+        pair_locs[pair].add(loc)
+    return pair_counts, pair_locs
+
   def build(self) -> tuple[list[Word], PairCount, PairLoc]:
     corpus = Counter(reader(self.source, self.pat))
-    words, pair_counts, pair_locs = [], Counter(), defaultdict(set)
-    for loc, (name, freq) in enumerate(corpus.items()):
-      word = Word(name, freq)
-      words.append(word)
-      for pair in word.pairs():
-        pair_counts[pair] += freq
-        pair_locs[pair].add(loc)
+    words = [Word(word, freq) for word, freq in corpus.items()]
+    pair_counts, pair_locs = self.get_counts(words)
     return words, pair_counts, pair_locs

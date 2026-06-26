@@ -1,10 +1,12 @@
 from collections import Counter, defaultdict
 from pathlib import Path
+
+from tests.tokenizer.test_tokens import test_pairs
 from .reader import Reader, Pattern, GPT4_PAT
 from .max_heap import PairMaxHeap
 from .tokens import Word, Pair
 
-class BPETrainer():
+class BPETrainer:
   def __init__(self,
     source:str | Path,
     vocab_size: int,
@@ -35,11 +37,11 @@ class BPETrainer():
       vocab[i] = a + b
       for loc in list(pair_locs[pair]):
         updates = words[loc].merge(pair)
-        for pair, delta in updates.items():
-          if delta > 0:
-            pair_locs[pair].add(loc)
-          else:
-            pair_locs[pair].remove(loc)
+        for updated_pair, delta in updates.items():
+            if updated_pair in words[loc].pairs():
+                pair_locs[updated_pair].add(loc)
+            else:
+                pair_locs[updated_pair].discard(loc)
         global_updates.update(updates)
       heap.update(global_updates)
       i += 1
