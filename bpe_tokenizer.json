@@ -1,0 +1,17 @@
+{
+    "vocab": {
+        "hello": 1,
+        "world": 2,
+        "\u00a1\u00bf": 3
+    },
+    "merges": [
+        [
+            "he",
+            "llo"
+        ],
+        [
+            "wo",
+            "rld"
+        ]
+    ]
+}

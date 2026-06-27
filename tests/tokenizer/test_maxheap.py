@@ -1,22 +1,22 @@
 import pytest
-from cs336_basics.maxheap import PairMaxHeap
+from cs336_basics.max_heap import PairMaxHeap, Pair, PairCount
 
-@pytest.mark.parametrize("a, b, expected", [
-    ((b'a', 7),   (b'ab', 5),  b'a'),
-    ((b'aba', 5), (b'ab', 5),  b'aba'),
+AA, BB, CC, AAA = tuple(map(Pair, [(b'a', b'a'), (b'b', b'b'), (b'c', b'c'), (b'aa', b'a')]))
+
+@pytest.mark.parametrize("pair_count, expected", [
+  (PairCount({AA: 7, BB: 5}),  AA),
+  (PairCount({AAA: 5, AA: 5}),  AAA),
 ],
 ids=["higher_num_wins", "tiebreak_bytes"])
 
-def test_returns_max_number(a, b, expected):
-    pair_freq = dict([a, b])
-    heap = PairMaxHeap(pair_freq)
+def test_returns_max_number(pair_count, expected):
+    heap = PairMaxHeap(pair_count)
     assert heap.get_best() == expected
 
 def test_update():
-    pair_freq = {'a':10, 'b':6, 'c':6}
-    heap = PairMaxHeap(pair_freq)
-    deltas = {'a': -10, 'b': 1}
-    heap.update(deltas)
-    assert heap.get_best() == 'b'
-    assert heap.pair_counts.get('a') is None
-    
+  pair_count = PairCount({AA:10, BB:6, CC:6})
+  heap = PairMaxHeap(pair_count)
+  deltas = PairCount({AA: -10, BB: 1})
+  heap.update(deltas)
+  assert heap.get_best() == BB
+  assert heap.pair_counts.get(AAA) is None

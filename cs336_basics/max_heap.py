@@ -1,10 +1,11 @@
 import heapq
 from dataclasses import dataclass
+from .types import Pair, PairCount
 
 @dataclass
 class MaxNode:
     count: int
-    pair: bytes
+    pair: Pair
 
     def __lt__(self, other):
         if self.count != other.count:
@@ -13,12 +14,12 @@ class MaxNode:
 
 
 class PairMaxHeap:
-    def __init__(self, pair_counts):
+    def __init__(self, pair_counts: PairCount) -> None:
         self.pair_counts = pair_counts
         self.heap = [MaxNode(count, pair) for pair, count in pair_counts.items()]
         heapq.heapify(self.heap)
 
-    def update(self, deltas):
+    def update(self, deltas: PairCount) -> None:
         for pair, delta in deltas.items():
             self.pair_counts[pair] += delta
             freq = self.pair_counts[pair]
@@ -27,7 +28,7 @@ class PairMaxHeap:
             else:
                 del self.pair_counts[pair]
 
-    def get_best(self):
+    def get_best(self) -> Pair | None:
         while self.heap:
             best = heapq.heappop(self.heap)
             if best.count == self.pair_counts.get(best.pair):

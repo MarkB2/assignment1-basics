@@ -15,21 +15,25 @@ def test_found(word):
   # don't throw exception
   assert not word.found_at(3, (b'd', b'e'))
 
+def test_pairs(word):
+  pairs = word.pairs()
+  assert pairs == [(b'a', b'b'), (b'b', b'c'), (b'c', b'd')]
+
 @pytest.mark.parametrize(
   "word, pair, expected, exp_updates",
   [
-    (Word('abcd'), to_bytes('ab'), (b'ab', b'c', b'd'), 
+    (Word('abcd'), to_bytes('ab'), (b'ab', b'c', b'd'),
       {(b'a', b'b'): -1, (b'ab', b'c'): 1, (b'b', b'c'): -1}),
     (Word('abcd'), to_bytes('bc'), (b'a', b'bc', b'd'),
       {(b'a', b'b'): -1, (b'a', b'bc'): 1, (b'bc', b'd'): 1, (b'b', b'c'): -1, (b'c', b'd'): -1}),
     (Word('abcd'), to_bytes('cd'), (b'a', b'b', b'cd'),
-      {(b'b', b'c'): -1, (b'b', b'cd'): 1, (b'c', b'd'): -1}),     
+      {(b'b', b'c'): -1, (b'b', b'cd'): 1, (b'c', b'd'): -1}),
     (Word('abcccd'), to_bytes('cc'), (b'a', b'b', b'cc', b'c', b'd'),
-      {(b'b', b'c'): -1, (b'b', b'cc'): 1, (b'cc', b'c'): 1, (b'c', b'c'): -2}),     
+      {(b'b', b'c'): -1, (b'b', b'cc'): 1, (b'cc', b'c'): 1, (b'c', b'c'): -2}),
     (Word('abcbcd'), to_bytes('bc'), (b'a', b'bc', b'bc', b'd'),
-      {(b'a', b'b'): -1, (b'a', b'bc'): 1, (b'bc', b'bc'): 1, (b'b', b'c'): -2, (b'bc', b'd'): 1, (b'c', b'b'): -1, (b'c', b'd'): -1}),     
+      {(b'a', b'b'): -1, (b'a', b'bc'): 1, (b'bc', b'bc'): 1, (b'b', b'c'): -2, (b'bc', b'd'): 1, (b'c', b'b'): -1, (b'c', b'd'): -1}),
     (Word('abcbcbcd'), to_bytes('bc'), (b'a', b'bc', b'bc', b'bc', b'd'),
-      {(b'a', b'b'): -1, (b'a', b'bc'): 1, (b'bc', b'bc'): 2, (b'b', b'c'): -3, (b'bc', b'd'): 1, (b'c', b'b'): -2, (b'c', b'd'): -1}),     
+      {(b'a', b'b'): -1, (b'a', b'bc'): 1, (b'bc', b'bc'): 2, (b'b', b'c'): -3, (b'bc', b'd'): 1, (b'c', b'b'): -2, (b'c', b'd'): -1}),
     (Word('abcd'), to_bytes('cv'), (b'a', b'b', b'c', b'd'), {}),
     (Word('ab'), to_bytes('ab'), (b'ab',), {(b'a', b'b'): -1}),
   ],

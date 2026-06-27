@@ -1,6 +1,6 @@
 from collections import Counter
+from .types import Pair
 
-Pair = tuple[bytes, bytes]
 
 # Converts string to tuple of bytes
 def to_bytes(string: str) -> tuple[bytes, ...]:
@@ -15,6 +15,9 @@ class Word:
 	# Checks if pair found at pos
 	def found_at(self, pos: int, pair: Pair) -> bool:
 		return self.tokens[pos: pos + 2] == pair
+
+	def pairs(self) -> list[Pair]:
+	  return list(zip(self.tokens, self.tokens[1:]))
 
 	# Merge the pair if found
 	def merge(self, pair: Pair):
