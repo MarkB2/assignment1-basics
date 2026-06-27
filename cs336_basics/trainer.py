@@ -1,4 +1,5 @@
 from collections import Counter, defaultdict
+import json
 from pathlib import Path
 
 from tests.tokenizer.test_tokens import test_pairs
@@ -33,6 +34,14 @@ class BPETrainer:
     while pair and i < self.vocab_size:
       global_updates = Counter()
       merges.append(pair)
+      #############
+      #
+      if pair == (b' g', b'ive'):
+        print(f"i={i} pair={pair} count={pair_counts[pair]} count_lflf={pair_counts[(b'\n', b'\n')]}")
+        real_pair_counts, real_pair_locs = Reader.get_counts(words)
+        print(f"i={i} pair={pair} real_count={real_pair_counts[pair]} real_count_lflf={real_pair_counts[(b'\n', b'\n')]}")
+      #
+      #############
       a, b = pair
       vocab[i] = a + b
       for loc in list(pair_locs[pair]):
@@ -46,8 +55,30 @@ class BPETrainer:
       heap.update(global_updates)
       i += 1
       pair = heap.get_best()
+      #############
+      #
+      if pair == (b' g', b'ive'):
+        print(f"i={i} pair={pair} count={pair_counts[pair]} count_lflf={pair_counts[(b'\n', b'\n')]}")
+      #
+      #############
     return vocab, merges
+
+# Recursively convert all bytes to latin-1 strings
+def make_json_safe(obj):
+    if isinstance(obj, dict):
+        return {make_json_safe(k): make_json_safe(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [make_json_safe(x) for x in obj]
+    elif isinstance(obj, tuple):
+        return [make_json_safe(x) for x in obj] # JSON arrays become lists
+    elif isinstance(obj, bytes):
+        return obj.decode('latin-1') # Safe for ALL binary data
+    return obj
+
+def serialize(obj, file_name):
+  with open(file_name, 'w') as file:
+    json.dump(make_json_safe(obj), file, indent=4)
 
 def train(input_path: str, vocab_size: int = 32_000,
     special_tokens: list[str] = ['<|endoftext|>']) -> tuple[dict[int, bytes], list[Pair]]:
-    return BPETrainer(Path(input_path), vocab_size, special_tokens).merge()
+  return BPETrainer(Path(input_path), vocab_size, special_tokens).merge()

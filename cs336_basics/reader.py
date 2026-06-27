@@ -57,7 +57,9 @@ def reader(source: str | Path, pat: Pattern) -> Iterator[str]:
   if isinstance(source, Path):
     with open(source, 'rb') as file:
       boundaries = find_chunk_boundaries(file)
+      # boundaries = [0, boundaries[-1]]
       for start, end in zip(boundaries, boundaries[1:]):
+        print(f"start, end {start, end}")
         file.seek(start)
         chunk_bytes = file.read(end - start)
         yield from reader(chunk_bytes.decode('utf-8', errors='ignore'), pat)
