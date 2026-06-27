@@ -1,5 +1,7 @@
 import heapq
 from dataclasses import dataclass
+
+from typing_extensions import final
 from .types import Pair, PairCount
 
 @dataclass
@@ -7,12 +9,12 @@ class MaxNode:
     count: int
     pair: Pair
 
-    def __lt__(self, other):
+    def __lt__(self, other: "MaxNode"):
         if self.count != other.count:
             return self.count > other.count
         return self.pair > other.pair
 
-
+@final
 class PairMaxHeap:
     def __init__(self, pair_counts: PairCount) -> None:
         self.pair_counts = pair_counts

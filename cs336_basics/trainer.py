@@ -1,6 +1,7 @@
 from collections import Counter, defaultdict
 import json
 from pathlib import Path
+import gc
 
 from tests.tokenizer.test_tokens import test_pairs
 from .reader import Reader, Pattern, GPT4_PAT
@@ -29,19 +30,12 @@ class BPETrainer:
 
   def merge(self) -> tuple[dict[int, bytes], list[Pair]]:
     words, pair_counts, pair_locs = Reader(self.source, self.pat).build()
+    gc.collect()
     heap, vocab, merges = PairMaxHeap(pair_counts), self.setup_vocab(), []
     i, pair = len(vocab), heap.get_best()
     while pair and i < self.vocab_size:
       global_updates = Counter()
       merges.append(pair)
-      #############
-      #
-      if pair == (b' g', b'ive'):
-        print(f"i={i} pair={pair} count={pair_counts[pair]} count_lflf={pair_counts[(b'\n', b'\n')]}")
-        real_pair_counts, real_pair_locs = Reader.get_counts(words)
-        print(f"i={i} pair={pair} real_count={real_pair_counts[pair]} real_count_lflf={real_pair_counts[(b'\n', b'\n')]}")
-      #
-      #############
       a, b = pair
       vocab[i] = a + b
       for loc in list(pair_locs[pair]):
@@ -55,12 +49,15 @@ class BPETrainer:
       heap.update(global_updates)
       i += 1
       pair = heap.get_best()
-      #############
-      #
-      if pair == (b' g', b'ive'):
-        print(f"i={i} pair={pair} count={pair_counts[pair]} count_lflf={pair_counts[(b'\n', b'\n')]}")
-      #
-      #############
+      if i % 5000 == 0:
+        keys = [k for k, v in pair_counts.items() if v<=0]
+        for key in keys:
+          del pair_counts[key]
+        keys = [k for k, v in pair_locs.items() if v == {}]
+        for key in keys:
+          del pair_locs[key]
+        gc.collect()
+
     return vocab, merges
 
 # Recursively convert all bytes to latin-1 strings

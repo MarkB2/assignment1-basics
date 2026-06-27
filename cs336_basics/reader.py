@@ -5,7 +5,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterator
 
 from .types import PairCount, PairLoc
-from .tokens import Pair, Word
+from .tokens import Word
 
 GPT4_PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
@@ -13,7 +13,7 @@ GPT4_PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\
 class Pattern:
   pat : str = GPT4_PAT
   special_tokens: list[str] = field(default_factory=lambda: [])
-  compiled : re.Pattern = field(init=False, repr=False)
+  compiled : re.Pattern[str] = field(init=False, repr=False)
 
   def __post_init__(self):
     if not self.special_tokens:
@@ -22,10 +22,10 @@ class Pattern:
     exclude = "|".join([re.escape(b) for b in self.special_tokens])
     self.compiled = re.compile(rf"({exclude})|({self.pat})")
 
-def choose_num_chunks(file_size: int, max_chunk_size: int = 50 * 1024 * 1024) -> int:
+def choose_num_chunks(file_size: int, max_chunk_size: int = 500 * 1024 * 1024) -> int:
   return max(1, -(-file_size // max_chunk_size))  # ceil div, no cpu cap needed
 
-def find_chunk_boundaries(file, special_token: bytes = b"<|endoftext|>"):
+def find_chunk_boundaries(file, special_token: bytes = b"<|endoftext|>") -> list[int]:
     file.seek(0, 2)
     file_size = file.tell()
     num_chunks = choose_num_chunks(file_size)
