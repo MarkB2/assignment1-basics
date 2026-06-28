@@ -1,17 +1,15 @@
-from numpy.ma.extras import isin
 import pytest
 from pathlib import Path
-from cs336_basics.tokenizer import deserialize
+from cs336_basics.types import Pair
+from cs336_basics.tokenizer import Merges, Vocab
+from ..common import FIXTURES_PATH
 
-
-def test_deserialize():
-  obj = deserialize(Path("/home/mark/projects/stanford-cs336/assignment1-basics/TinyStories.json"))
-  assert isinstance(obj, tuple)
-  vocab, merges = obj
-  assert isinstance(vocab, dict)
-  assert isinstance(merges, tuple)
-  assert isinstance(vocab[0], bytes)
-  assert isinstance(merges[0], tuple)
-  a, b = merges[0]
-  assert isinstance(a, bytes)
-  assert isinstance(b, bytes)
+def test_serialization():
+  out = FIXTURES_PATH / 'vocab.json'
+  vocab = Vocab({3:b'abc'})
+  vocab.save(out)
+  assert Vocab.load(out) == vocab
+  out = FIXTURES_PATH / 'merges.json'
+  merges = Merges([Pair([b'a', b'\x00'])])
+  merges.save(out)
+  assert Merges.load(out) == merges
