@@ -2,11 +2,10 @@ from collections import Counter, defaultdict
 import json
 from pathlib import Path
 import gc
+from .types import Pair, Vocab, Merges
 
-from tests.tokenizer.test_tokens import test_pairs
 from .reader import Reader, Pattern, GPT4_PAT
 from .max_heap import PairMaxHeap
-from .tokens import Word, Pair
 
 class BPETrainer:
   def __init__(self,
@@ -15,32 +14,32 @@ class BPETrainer:
     special_tokens: list[str],
     pat: str = GPT4_PAT
   ) -> None:
-    self.source = source
-    self.vocab_size = vocab_size
-    self.pat = Pattern(pat=pat, special_tokens=special_tokens)
+    self.source:str | Path = source
+    self.vocab_size: int = vocab_size
+    self.pat: Pattern = Pattern(pat=pat, special_tokens=special_tokens)
 
-  def setup_vocab(self) -> dict[int, bytes]:
-    vocab = {}
+  def setup(self) -> tuple[Vocab, Merges]:
+    vocab = Vocab()
     for i, spec_tok in enumerate(self.pat.special_tokens):
       vocab[i] = bytes(spec_tok, encoding='utf-8')
     i = len(vocab)
     for j in range(256):
       vocab[i+j] = bytes([j])
-    return vocab
+    return vocab, Merges()
 
-  def merge(self) -> tuple[dict[int, bytes], list[Pair]]:
+  def merge(self) -> tuple[Vocab, Merges]:
     words, pair_counts, pair_locs = Reader(self.source, self.pat).build()
-    gc.collect()
-    heap, vocab, merges = PairMaxHeap(pair_counts), self.setup_vocab(), []
+    _ = gc.collect()
+    heap, (vocab, merges) = PairMaxHeap(pair_counts), self.setup()
     i, pair = len(vocab), heap.get_best()
     while pair and i < self.vocab_size:
-      global_updates = Counter()
+      global_updates: Counter[Pair] = Counter()
       merges.append(pair)
       a, b = pair
       vocab[i] = a + b
       for loc in list(pair_locs[pair]):
         updates = words[loc].merge(pair)
-        for updated_pair, delta in updates.items():
+        for updated_pair in updates.keys():
             if updated_pair in words[loc].pairs():
                 pair_locs[updated_pair].add(loc)
             else:
@@ -53,10 +52,10 @@ class BPETrainer:
         keys = [k for k, v in pair_counts.items() if v<=0]
         for key in keys:
           del pair_counts[key]
-        keys = [k for k, v in pair_locs.items() if v == {}]
+        keys = [k for k, v in pair_locs.items() if v == set()]
         for key in keys:
           del pair_locs[key]
-        gc.collect()
+        _ = gc.collect()
 
     return vocab, merges
 

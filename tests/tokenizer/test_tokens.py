@@ -1,5 +1,7 @@
 import pytest
 from cs336_basics.tokens import to_bytes, Word
+from cs336_basics.tokenizer import Vocab, Merges
+from ..common import FIXTURES_PATH
 
 def test_to_bytes():
   assert to_bytes('abc') == (b'a', b'b', b'c')
@@ -54,3 +56,34 @@ def test_merge(word, pair, expected, exp_updates):
   assert word.tokens == expected
   if exp_updates:
     assert updates == exp_updates
+
+
+def test_encode():
+  vocab = Vocab.load(FIXTURES_PATH / 'vocab_corpus.json')
+  merges = Merges.load(FIXTURES_PATH / 'merges_corpus.json')
+  lookup_table = set([pair for pair in merges])
+  ids = {v:k for k,v in vocab.items()}
+  word = Word('university')
+  assert len(word.tokens) == 10
+  id, pos = lookup(word.tokens, word.tokens[0], 1, lookup_table, ids)
+  assert Pair([b'un', b'i']) not in lookup_table
+  assert id == 426
+  assert pos == 2
+  id, pos = lookup(word.tokens, word.tokens[pos], pos+1, lookup_table, ids)
+  assert id == 106
+  assert pos == 3
+  id, pos = lookup(word.tokens, word.tokens[pos], pos+1, lookup_table, ids)
+  assert id == 327
+  assert pos == 5
+  id, pos = lookup(word.tokens, word.tokens[pos], pos+1, lookup_table, ids)
+  assert id == 115
+  assert pos == 6
+  id, pos = lookup(word.tokens, word.tokens[pos], pos+1, lookup_table, ids)
+  assert id == 116
+  assert pos == 7
+  id, pos = lookup(word.tokens, word.tokens[pos], pos+1, lookup_table, ids)
+  assert id == 440
+  assert pos == 10
+
+  res = encode(word.tokens, lookup_table, ids)
+  assert res == [426, 106, 327, 115, 116, 440]

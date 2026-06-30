@@ -1,46 +1,47 @@
 from __future__ import annotations
 from pathlib import Path
 from collections.abc import Iterable, Iterator
-import json
-from cs336_basics.types import Pair
+from typing import Self, final
+from cs336_basics.tokens import Word
+from cs336_basics.types import Pair, Vocab, Merges
 
-def save(path: Path | str, obj: dict[int, str] | list[list[str]]) -> None:
-  with open(path, 'w') as f:
-    json.dump(obj, f)
-
-def load(path: Path | str) -> dict[int, str] | list[list[str]]:
-  with open(path) as f:
-    return json.load(f) # pyright: ignore[reportAny]
-
-class Vocab(dict[int, bytes]):
-  def save(self, path: Path | str) -> None:
-    save(path, {k:v.decode('latin1') for k, v in self.items()})
-
-  @classmethod
-  def load(cls, path: Path | str):
-    return Vocab({int(k):v.encode('latin1') for k, v in load(path).items()}) # pyright: ignore
-
-class Merges(list[Pair]):
-  def save(self, path: Path | str) -> None:
-    save(path, [[s.decode('latin1') for s in pair] for pair in self])
-
-  @classmethod
-  def load(cls, path: Path | str):
-    return Merges([Pair([s.encode('latin1') for s in pair]) for pair in load(path)]) # pyright: ignore
-
+@final
 class Tokenizer:
-  def __init__(self, vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], special_tokens: list[str] | None = None):
-    pass
+  def __init__(self, vocab: Vocab, merges: Merges, special_tokens: list[str] | None = None):
+    if special_tokens is not None:
+      for special_token in special_tokens:
+        encoded_special_token = special_token.encode("utf-8")
+        if encoded_special_token not in set(vocab.values()):
+          vocab[len(vocab)] = encoded_special_token
+    self.vocab = vocab
+    self.ids = {v:k for k,v in self.vocab.items()}
+    self.merges = merges
+    self.pairs = set(self.merges)
+    self.special_tokens = special_tokens
 
   @classmethod
-  def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None):
-    ...
+  def from_files(cls, vocab_filepath: str | Path, merges_filepath: str | Path, special_tokens: list[str] | None = None) -> Self:
+    return cls(Vocab.load(vocab_filepath), Merges.load(merges_filepath), special_tokens)
+
+  def _lookup(self, tokens:tuple[bytes, ...], prev:bytes, pos:int) -> tuple[int, int]:
+    if pos < len(tokens) and Pair([prev, tokens[pos]]) in self.pairs:
+      return self._lookup(tokens, prev + tokens[pos], pos+1)
+    return self.ids[prev], pos
+
+  def _encode(self, word:Word) -> list[int]:
+    ids:list[int] = []
+    pos, tokens = 0, word.tokens
+    while pos < len(tokens) - 1:
+      prev = tokens[pos]
+      id, pos = self._lookup(tokens, prev, pos+1)
+      ids.append(id)
+    return ids
 
   def encode(self, text: str) -> list[int]:
-    ...
+    return self._encode(Word(text))
 
   def encode_iterable(self, texts: Iterable[str]) -> Iterator[int]:
     ...
 
   def decode(self, tokens: list[int]) -> str:
-    ...
+    return b"".join(self.vocab[id] for id in tokens).decode("utf-8", errors='replace')
