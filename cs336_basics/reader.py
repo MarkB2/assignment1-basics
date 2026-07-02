@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from collections import Counter, defaultdict
 from collections.abc import Iterator
 
-from .types import PairCount, PairLoc
-from .tokens import Word
+from .types import PairCount, PairLoc, Pretoken, SpecialToken
+from .tokens import to_bytes, Word
 
 GPT4_PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
@@ -13,6 +13,7 @@ GPT4_PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\
 class Pattern:
   pat : str = GPT4_PAT
   special_tokens: list[str] = field(default_factory=lambda: [])
+  p: str = ""
   compiled : re.Pattern[str] = field(init=False, repr=False)
 
   def __post_init__(self):
@@ -20,6 +21,7 @@ class Pattern:
       self.special_tokens = ["<|endoftext|>"]
     self.special_tokens.sort(key=lambda x: len(x), reverse=True)
     exclude = "|".join([re.escape(b) for b in self.special_tokens])
+    self.p = rf"({exclude})|({self.pat})"
     self.compiled = re.compile(rf"({exclude})|({self.pat})")
 
 def choose_num_chunks(file_size: int, max_chunk_size: int = 500 * 1024 * 1024) -> int:
@@ -75,7 +77,7 @@ class Reader:
 
   @classmethod
   def get_counts(cls, words: list[Word]) -> tuple[PairCount, PairLoc]:
-    pair_counts, pair_locs = Counter(), defaultdict(set)
+    pair_counts, pair_locs = PairCount(), PairLoc()
     for loc, word in enumerate(words):
       for pair in word.pairs():
         pair_counts[pair] += word.freq
@@ -84,6 +86,58 @@ class Reader:
 
   def build(self) -> tuple[list[Word], PairCount, PairLoc]:
     corpus = Counter(reader(self.source, self.pat))
+    words = [Word(word, freq) for word, freq in corpus.items()]
+    pair_counts, pair_locs = self.get_counts(words)
+    return words, pair_counts, pair_locs
+
+class Pretokenizer:
+  def __init__(self, source: str | Path, pat: str = GPT4_PAT, special_tokens: list[str] | None = None, keep_special_tokens: bool = False) -> None:
+    self.source: str | Path = source
+    self.pat: re.Pattern[str] = re.compile(pat)
+    special_tokens = special_tokens or ["<|endoftext|>"]
+    self.special_tokens: set[str] = set(special_tokens)
+    self.split_pat: re.Pattern[str] = self.split_pattern(special_tokens)
+    self.keep_special_tokens: bool = keep_special_tokens
+
+  @classmethod
+  def split_pattern(cls, special_tokens: list[str]) -> re.Pattern[str]:
+    special_tokens.sort(key=lambda x: len(x), reverse=True)
+    split_pat = "|".join([re.escape(b) for b in special_tokens])
+    return re.compile(rf"({split_pat})")
+
+  def _read(self, source: str) -> Iterator[Pretoken]:
+    for part in re.split(self.split_pat, source):
+      if part in self.special_tokens:
+       if self.keep_special_tokens:
+        yield SpecialToken(part)
+      else:
+        for match in re.finditer(self.pat, part):
+            yield match.group()
+
+  def read(self) -> Iterator[Pretoken]:
+    if isinstance(self.source, Path):
+      with open(self.source, 'rb') as file:
+        boundaries = find_chunk_boundaries(file)
+        # boundaries = [0, boundaries[-1]]
+        for start, end in zip(boundaries, boundaries[1:]):
+          print(f"start, end {start, end}")
+          file.seek(start)
+          chunk_bytes = file.read(end - start)
+          yield from self._read(chunk_bytes.decode('utf-8', errors='ignore'))
+    else:
+      yield from self._read(self.source)
+
+  @classmethod
+  def get_counts(cls, words: list[Word]) -> tuple[PairCount, PairLoc]:
+    pair_counts, pair_locs = PairCount(), PairLoc()
+    for loc, word in enumerate(words):
+      for pair in word.pairs():
+        pair_counts[pair] += word.freq
+        pair_locs[pair].add(loc)
+    return pair_counts, pair_locs
+
+  def build(self) -> tuple[list[Word], PairCount, PairLoc]:
+    corpus: Counter[Pretoken] = Counter(self.read())
     words = [Word(word, freq) for word, freq in corpus.items()]
     pair_counts, pair_locs = self.get_counts(words)
     return words, pair_counts, pair_locs

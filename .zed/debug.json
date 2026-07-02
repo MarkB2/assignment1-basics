@@ -1,0 +1,13 @@
+[
+  {
+    "label": "pytest current file",
+    "adapter": "debugpy",
+    "request": "launch",
+    "module": "pytest",
+    "args": ["${file}", "-v"],
+    "cwd": "${workspaceFolder}",
+    "justMyCode": false,
+    "python": "python",
+    "pythonArgs": ["-Xfrozen_modules=off"]
+  }
+]

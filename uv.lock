@@ -167,6 +167,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "debugpy" },
     { name = "ipykernel" },
 ]
 
@@ -189,7 +190,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "ipykernel", specifier = ">=7.2.0" }]
+dev = [
+    { name = "debugpy", specifier = ">=1.8.20" },
+    { name = "ipykernel", specifier = ">=7.2.0" },
+]
 
 [[package]]
 name = "cuda-bindings"

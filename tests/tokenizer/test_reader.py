@@ -1,7 +1,8 @@
 import pytest
 from collections import Counter
 from pathlib import Path
-from cs336_basics.reader import Reader, reader, Pattern
+from cs336_basics.types import SpecialToken
+from cs336_basics.reader import Reader, reader, Pattern, Pretokenizer
 
 @pytest.fixture
 def string():
@@ -30,3 +31,17 @@ def test_file_reader():
 def test_reader2():
   words, _, _ = Reader(Path('tests/tokenizer/text.txt'), Pattern()).build()
   assert len(words) == 6 # including \n
+
+def test_pretokenizer():
+  special_tokens = ["<|endoftext|>", "<|padding|>", "<|unk|>"]
+  pt = Pretokenizer("Hello<|endoftext|>world<|unk|>!", special_tokens=special_tokens, keep_special_tokens=True)
+  assert list(pt.read()) == ["Hello", SpecialToken(text='<|endoftext|>'), "world", SpecialToken(text='<|unk|>'), "!"]
+  pt = Pretokenizer("Hello<|endoftext|>world<|unk|>!", special_tokens=special_tokens, keep_special_tokens=False)
+  assert list(pt.read()) == ["Hello", "world", "!"]
+
+def test_pretokenizer_from_file():
+  special_tokens = ["<|endoftext|>"]
+  pt = Pretokenizer(Path('tests/tokenizer/text.txt'))
+  assert list(pt.read()) == ['one', ' two', ' tr', 'ee', ' four', '\n']
+  pt = Pretokenizer(Path('tests/tokenizer/text.txt'), keep_special_tokens=True)
+  assert list(pt.read()) == ['one', ' two', ' tr', SpecialToken(text='<|endoftext|>'), 'ee', ' four', '\n']

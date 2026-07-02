@@ -31,7 +31,7 @@ class Tokenizer:
   def _encode(self, word:Word) -> list[int]:
     ids:list[int] = []
     pos, tokens = 0, word.tokens
-    while pos < len(tokens) - 1:
+    while pos < len(tokens):
       prev = tokens[pos]
       id, pos = self._lookup(tokens, prev, pos+1)
       ids.append(id)
