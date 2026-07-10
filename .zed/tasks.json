@@ -57,14 +57,39 @@
     // "tags": []
   },
   {
-     "label": "pytest: directory",
-     "command": "uv run pytest tests/tokenizer -v",
-     "use_new_terminal": false,
-     "allow_concurrent_runs": false,
-     "reveal": "always",
-     "reveal_target": "dock",
-     "hide": "never",
-     "shell": "system",
-     "save": "all",
-   },
+    "label": "pytest: current file",
+    "command": "uv",
+    "args": ["run", "pytest", "$ZED_FILE", "-v"],
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "reveal_target": "dock",
+    "hide": "never",
+    "shell": "system",
+    "save": "all"
+  },
+  {
+    "label": "pytest: current directory",
+    "command": "uv",
+    "args": ["run", "pytest", "$ZED_DIRNAME", "-v"],
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "reveal_target": "dock",
+    "hide": "never",
+    "shell": "system",
+    "save": "all"
+  },
+  {
+    "label": "pytest: all tests",
+    "command": "uv",
+    "args": ["run", "pytest", "-v"],
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "reveal_target": "dock",
+    "hide": "never",
+    "shell": "system",
+    "save": "all"
+  }
 ]
