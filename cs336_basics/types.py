@@ -1,13 +1,15 @@
 import json
 from collections import Counter, defaultdict
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 Pair = tuple[bytes, bytes]
 PairCount = Counter[Pair]
+
+
 class PairLoc(defaultdict[Pair, set[int]]):
-  def __init__(self):
-    super().__init__(set)
+    def __init__(self):
+        super().__init__(set)
 
 
 def save(path: Path | str, obj: dict[int, str] | list[list[str]]) -> None:
@@ -37,8 +39,10 @@ class Merges(list[Pair]):
     def load(cls, path: Path | str):
         return Merges([Pair([s.encode("latin1") for s in pair]) for pair in load(path)])  # pyright: ignore
 
+
 @dataclass(frozen=True)
 class SpecialToken:
-  text: str
+    text: str
+
 
 Pretoken = SpecialToken | str

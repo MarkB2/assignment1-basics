@@ -99,3 +99,10 @@ def train(input_path: str | Path, vocab_size: int = 32_000,
     special_tokens: list[str] = ['<|endoftext|>']) -> tuple[dict[int, bytes], list[Pair]]:
   iterator = pretokenize(input_path, special_tokens=special_tokens)
   return BPETrainer(iterator, vocab_size, special_tokens).merge()
+
+def train_and_save(input_path: str | Path, vocab_path: str | Path, merges_path: str | Path,vocab_size: int = 32_000,
+    special_tokens: list[str] = ['<|endoftext|>']) -> None:
+  iterator = pretokenize(input_path, special_tokens=special_tokens)
+  vocab, merges = BPETrainer(iterator, vocab_size, special_tokens).merge()
+  vocab.save(vocab_path)
+  merges.save(merges_path)
