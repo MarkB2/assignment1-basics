@@ -25,3 +25,14 @@ source = "Hello, how <|endoftext|><|endoftext|> are you?<|endoftext|>"
 for match in re.finditer(pat, source):
   if match.group(2):
     print(match.group(2))
+
+# %%
+Pair = tuple
+PairLoc = defaultdict[Pair, set[int]]
+
+p = PairLoc()
+
+# p = defaultdict(set)
+print(type(p))
+print(p.default_factory)
+# print(p[(b'i', b'r')])

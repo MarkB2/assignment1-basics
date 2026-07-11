@@ -3,11 +3,10 @@ from collections import Counter, defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from posix import stat
-from typing import override
+from multiprocessing import Pool
+from typing import NamedTuple
 
 import regex as re
-from typing_extensions import overload
 
 from .tokens import Word, to_bytes
 from .types import PairCount, PairLoc, Pretoken, SpecialToken
@@ -63,9 +62,9 @@ def find_chunk_boundaries(file, special_token: bytes = b"<|endoftext|>", max_chu
 
     return sorted(set(boundaries))
 
-@dataclass(frozen=True)
-class PretokenizeConfig:
 
+@dataclass(frozen=True)
+class PretokenizeConfig: ...
 
 
 def reader(source: str | Path, pat: Pattern) -> Iterator[str]:
@@ -105,7 +104,7 @@ class Reader:
         return words, pair_counts, pair_locs
 
 
-class Pretokenizer:
+class _Pretokenizer:
     def __init__(
         self,
         source: str | Path,
@@ -164,7 +163,7 @@ class Pretokenizer:
         return words, pair_counts, pair_locs
 
 
-class PretokenizerReader:
+class Pretokenizer:
     def __init__(
         self, pat: str = GPT4_PAT, special_tokens: list[str] | None = None, keep_special_tokens: bool = False
     ) -> None:
@@ -176,7 +175,7 @@ class PretokenizerReader:
         self.special_tokens: set[str] = set(special_tokens)
         self.keep_special_tokens: bool = keep_special_tokens
 
-    def read_string(self, source: str) -> Iterator[Pretoken]:
+    def iter_chunk(self, source: str) -> Iterator[Pretoken]:
         for part in re.split(self.split_pat, source):
             if part in self.special_tokens:
                 if self.keep_special_tokens:
@@ -184,73 +183,105 @@ class PretokenizerReader:
             else:
                 for match in re.finditer(self.pat, part):
                     yield match.group()
-    @classmethod
-    def from_string(cls, source: str, pat: str = GPT4_PAT, special_tokens: list[str] | None = None, keep_special_tokens: bool = False):
-        return cls(pat, special_tokens, keep_special_tokens).read_string(source)
-
-    @classmethod
-    def from_file(cls, source: str, pat: str = GPT4_PAT, special_tokens: list[str] | None = None, keep_special_tokens: bool = False, max_chunk_size: int = 50_000_000, num_workers: int = 1):
-        instance = cls(pat, special_tokens, keep_special_tokens)
-        with open(self.source, "rb") as file:
-            boundaries = find_chunk_boundaries(file, max_chunk_size=max_chunk_size)
-            for start, end in zip(boundaries, boundaries[1:]):
-                if self.num_workers == 1:
-                    # print(f"start, end {start, end}")
-                    # file.seek(start)
-                    # chunk_bytes = file.read(end - start)
-                    yield from instance.read_string(chunk_bytes.decode("utf-8", errors="ignore"))
-                else:
-                if num_workers == 1:
-
-    @staticmethod
-    def process_chunk(args):
-        instance, source, start, end = args
-        with open(source, "rb") as file:
-            file.seek(start)
-            chunk_bytes = file.read(end - start)
-            return list(instance.read_string(chunk_bytes.decode("utf-8", errors="ignore")))
 
 
+class ChunkArgs(NamedTuple):
+    pretokenizer: Pretokenizer
+    source: str | Path
+    start: int
+    end: int
 
-# def build(self) -> tuple[list[Word], PairCount, PairLoc]:
-#     corpus: Counter[Pretoken] = Counter(self.read())
-#     words = [Word(word, freq) for word, freq in corpus.items()]
-#     pair_counts, pair_locs = self.get_counts(words)
-#     return words, pair_counts, pair_locs
+def process_chunk_iter(args: ChunkArgs) -> Iterator[Pretoken]:
+    pretokenizer, source, start, end = args
+    with open(source, "rb") as file:
+        _ = file.seek(start)
+        chunk_bytes = file.read(end - start)
+        yield from pretokenizer.iter_chunk(chunk_bytes.decode("utf-8", errors="ignore"))
 
-def get_counts(words: list[Word]) -> tuple[PairCount, PairLoc]:
-    pair_counts, pair_locs = PairCount(), PairLoc()
-    for loc, word in enumerate(words):
-        for pair in word.pairs():
-            pair_counts[pair] += word.freq
-            pair_locs[pair].add(loc)
-    return pair_counts, pair_locs
 
-class StringPretokenizer:
-    def __init__(self, source: str, pat: str = GPT4_PAT, special_tokens: list[str] | None = None, keep_special_tokens: bool = False) -> None:
-        self.source: str = source
-        super().__init__(pat, special_tokens, keep_special_tokens)
+def process_chunk_list(args: ChunkArgs) -> list[Pretoken]:
+    return list(process_chunk_iter(args))
 
-    @override
-    def read(self) -> Iterator[Pretoken]:
-        return self.read_string(self.source)
 
-class FilePretokenizer(PretokenizerBase):
-    def __init__(self, source: str | Path, pat: str = GPT4_PAT, special_tokens: list[str] | None = None, keep_special_tokens: bool = False, max_chunk_size: int = 50_000_000, num_workers: int = 1) -> None:
-        self.source: str | Path = source
-        self.max_chunk_size: int = max_chunk_size
-        self.num_workers: int = num_workers
-        super().__init__(pat, special_tokens, keep_special_tokens)
+def pretokenize(
+    source: str | Path,
+    pat: str = GPT4_PAT,
+    special_tokens: list[str] | None = None,
+    keep_special_tokens: bool = False,
+    max_chunk_size: int = 50_000_000,
+    num_workers: int = 1,
+) -> Iterator[Pretoken]:
+    pretokenizer = Pretokenizer(pat, special_tokens, keep_special_tokens)
+    with open(source, "rb") as file:
+        boundaries = find_chunk_boundaries(file, max_chunk_size=max_chunk_size)
+    tasks = [ChunkArgs(pretokenizer, source, start, end) for start, end in zip(boundaries, boundaries[1:])]
+    if num_workers == 1:
+      for task in tasks:
+        yield from process_chunk_iter(task)
+    else:
+      with Pool(num_workers) as pool:
+        for chunk in pool.imap(process_chunk_list, tasks):
+          yield from chunk
 
-    @override
-    def read(self) -> Iterator[Pretoken]:
-        with open(self.source, "rb") as file:
-            boundaries = find_chunk_boundaries(file, max_chunk_size=self.max_chunk_size)
-            for start, end in zip(boundaries, boundaries[1:]):
-                if self.num_workers == 1:
-                    print(f"start, end {start, end}")
-                    file.seek(start)
-                    chunk_bytes = file.read(end - start)
-                    yield from self.read_string(chunk_bytes.decode("utf-8", errors="ignore"))
-                else:
-                    ...
+
+
+
+#     @classmethod
+#     def from_file(cls, source: str, pat: str = GPT4_PAT, special_tokens: list[str] | None = None, keep_special_tokens: bool = False, max_chunk_size: int = 50_000_000, num_workers: int = 1):
+#         instance = cls(pat, special_tokens, keep_special_tokens)
+#         with open(self.source, "rb") as file:
+#             boundaries = find_chunk_boundaries(file, max_chunk_size=max_chunk_size)
+#             for start, end in zip(boundaries, boundaries[1:]):
+#                 if self.num_workers == 1:
+#                     # print(f"start, end {start, end}")
+#                     # file.seek(start)
+#                     # chunk_bytes = file.read(end - start)
+#                     yield from instance.iter_chunk(chunk_bytes.decode("utf-8", errors="ignore"))
+#                 else:
+#                 if num_workers == 1:
+
+#     @staticmethod
+
+
+# # def build(self) -> tuple[list[Word], PairCount, PairLoc]:
+# #     corpus: Counter[Pretoken] = Counter(self.read())
+# #     words = [Word(word, freq) for word, freq in corpus.items()]
+# #     pair_counts, pair_locs = self.get_counts(words)
+# #     return words, pair_counts, pair_locs
+
+# def get_counts(words: list[Word]) -> tuple[PairCount, PairLoc]:
+#     pair_counts, pair_locs = PairCount(), PairLoc()
+#     for loc, word in enumerate(words):
+#         for pair in word.pairs():
+#             pair_counts[pair] += word.freq
+#             pair_locs[pair].add(loc)
+#     return pair_counts, pair_locs
+
+# class StringPretokenizer:
+#     def __init__(self, source: str, pat: str = GPT4_PAT, special_tokens: list[str] | None = None, keep_special_tokens: bool = False) -> None:
+#         self.source: str = source
+#         super().__init__(pat, special_tokens, keep_special_tokens)
+
+#     @override
+#     def read(self) -> Iterator[Pretoken]:
+#         return self.read_string(self.source)
+
+# class FilePretokenizer(PretokenizerBase):
+#     def __init__(self, source: str | Path, pat: str = GPT4_PAT, special_tokens: list[str] | None = None, keep_special_tokens: bool = False, max_chunk_size: int = 50_000_000, num_workers: int = 1) -> None:
+#         self.source: str | Path = source
+#         self.max_chunk_size: int = max_chunk_size
+#         self.num_workers: int = num_workers
+#         super().__init__(pat, special_tokens, keep_special_tokens)
+
+#     @override
+#     def read(self) -> Iterator[Pretoken]:
+#         with open(self.source, "rb") as file:
+#             boundaries = find_chunk_boundaries(file, max_chunk_size=self.max_chunk_size)
+#             for start, end in zip(boundaries, boundaries[1:]):
+#                 if self.num_workers == 1:
+#                     print(f"start, end {start, end}")
+#                     file.seek(start)
+#                     chunk_bytes = file.read(end - start)
+#                     yield from self.read_string(chunk_bytes.decode("utf-8", errors="ignore"))
+#                 else:
+#                     ...

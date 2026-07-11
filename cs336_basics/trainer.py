@@ -1,36 +1,56 @@
 from collections import Counter, defaultdict
+from collections.abc import Iterator
 import json
 from pathlib import Path
 import gc
-from .types import Pair, Vocab, Merges
+from .types import Pair, Vocab, Merges, Pretoken, PairCount, PairLoc
+from .tokens import Word
 
-from .reader import Reader, Pattern, GPT4_PAT
+from .reader import Reader, Pattern, GPT4_PAT, pretokenize
 from .max_heap import PairMaxHeap
 
 class BPETrainer:
   def __init__(self,
-    source:str | Path,
+    iterator: Iterator[Pretoken],
     vocab_size: int,
     special_tokens: list[str],
-    pat: str = GPT4_PAT
   ) -> None:
-    self.source:str | Path = source
+    self.iterator: Iterator[Pretoken] = iterator
     self.vocab_size: int = vocab_size
-    self.pat: Pattern = Pattern(pat=pat, special_tokens=special_tokens)
-
-  def setup(self) -> tuple[Vocab, Merges]:
-    vocab = Vocab()
-    for i, spec_tok in enumerate(self.pat.special_tokens):
-      vocab[i] = bytes(spec_tok, encoding='utf-8')
-    i = len(vocab)
+    vocab = Vocab({i: bytes(special_token, encoding='utf-8') for i, special_token in enumerate(special_tokens)})
     for j in range(256):
-      vocab[i+j] = bytes([j])
-    return vocab, Merges()
+      vocab[len(vocab)] = bytes([j])
+    self.vocab: Vocab = vocab
+    self.merges: Merges = Merges()
+
+  def build(self) -> tuple[list[Word], PairCount, PairLoc]:
+      corpus: Counter[Pretoken] = Counter(self.iterator)
+      words = [Word(word, freq) for word, freq in corpus.items()]
+      pair_counts, pair_locs = self.get_counts(words)
+      return words, pair_counts, pair_locs
+
+  @classmethod
+  def get_counts(cls, words: list[Word]) -> tuple[PairCount, PairLoc]:
+      pair_counts, pair_locs = PairCount(), PairLoc()
+      for loc, word in enumerate(words):
+          for pair in word.pairs():
+              pair_counts[pair] += word.freq
+              pair_locs[pair].add(loc)
+      return pair_counts, pair_locs
+
+  # def setup(self) -> tuple[Vocab, Merges]:
+  #   vocab = Vocab()
+  #   for i, spec_tok in enumerate(self.pat.special_tokens):
+  #     vocab[i] = bytes(spec_tok, encoding='utf-8')
+  #   i = len(vocab)
+  #   for j in range(256):
+  #     vocab[i+j] = bytes([j])
+  #   return vocab, Merges()
 
   def merge(self) -> tuple[Vocab, Merges]:
-    words, pair_counts, pair_locs = Reader(self.source, self.pat).build()
+    words, pair_counts, pair_locs = self.build()
     _ = gc.collect()
-    heap, (vocab, merges) = PairMaxHeap(pair_counts), self.setup()
+    heap, vocab, merges = PairMaxHeap(pair_counts), self.vocab, self.merges
     i, pair = len(vocab), heap.get_best()
     while pair and i < self.vocab_size:
       global_updates: Counter[Pair] = Counter()
@@ -75,6 +95,7 @@ def serialize(obj, file_name):
   with open(file_name, 'w') as file:
     json.dump(make_json_safe(obj), file, indent=4)
 
-def train(input_path: str, vocab_size: int = 32_000,
+def train(input_path: str | Path, vocab_size: int = 32_000,
     special_tokens: list[str] = ['<|endoftext|>']) -> tuple[dict[int, bytes], list[Pair]]:
-  return BPETrainer(Path(input_path), vocab_size, special_tokens).merge()
+  iterator = pretokenize(input_path, special_tokens=special_tokens)
+  return BPETrainer(iterator, vocab_size, special_tokens).merge()

@@ -5,7 +5,9 @@ from dataclasses import dataclass
 
 Pair = tuple[bytes, bytes]
 PairCount = Counter[Pair]
-PairLoc = defaultdict[Pair, set[int]]
+class PairLoc(defaultdict[Pair, set[int]]):
+  def __init__(self):
+    super().__init__(set)
 
 
 def save(path: Path | str, obj: dict[int, str] | list[list[str]]) -> None:

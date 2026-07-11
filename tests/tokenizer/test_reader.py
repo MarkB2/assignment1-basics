@@ -2,7 +2,7 @@ import pytest
 from collections import Counter
 from pathlib import Path
 from cs336_basics.types import SpecialToken
-from cs336_basics.reader import Reader, reader, Pattern, Pretokenizer, StringPretokenizer, FilePretokenizer
+from cs336_basics.reader import Reader, reader, Pattern, Pretokenizer, pretokenize #, StringPretokenizer, FilePretokenizer
 
 @pytest.fixture
 def string():
@@ -34,14 +34,17 @@ def test_file_reader():
 
 def test_pretokenizer():
   special_tokens = ["<|endoftext|>", "<|padding|>", "<|unk|>"]
-  pt = StringPretokenizer("Hello<|endoftext|>world<|unk|>!", special_tokens=special_tokens, keep_special_tokens=True)
-  assert list(pt.read()) == ["Hello", SpecialToken(text='<|endoftext|>'), "world", SpecialToken(text='<|unk|>'), "!"]
-  pt = StringPretokenizer("Hello<|endoftext|>world<|unk|>!", special_tokens=special_tokens, keep_special_tokens=False)
-  assert list(pt.read()) == ["Hello", "world", "!"]
+  pt = Pretokenizer(special_tokens=special_tokens, keep_special_tokens=True)
+  assert list(pt.iter_chunk("Hello<|endoftext|>world<|unk|>!")) == ["Hello", SpecialToken(text='<|endoftext|>'), "world", SpecialToken(text='<|unk|>'), "!"]
+  pt = Pretokenizer(special_tokens=special_tokens, keep_special_tokens=False)
+  assert list(pt.iter_chunk("Hello<|endoftext|>world<|unk|>!")) == ["Hello", "world", "!"]
 
 def test_pretokenizer_from_file():
   special_tokens = ["<|endoftext|>"]
-  pt = FilePretokenizer(Path('tests/tokenizer/text.txt'))
-  assert list(pt.read()) == ['one', ' two', ' tr', 'ee', ' four', '\n']
-  pt = FilePretokenizer(Path('tests/tokenizer/text.txt'), keep_special_tokens=True)
-  assert list(pt.read()) == ['one', ' two', ' tr', SpecialToken(text='<|endoftext|>'), 'ee', ' four', '\n']
+  assert list(pretokenize(Path('tests/tokenizer/text.txt'))) == ['one', ' two', ' tr', 'ee', ' four', '\n']
+  assert list(pretokenize(Path('tests/tokenizer/text.txt'), keep_special_tokens=True)) == ['one', ' two', ' tr', SpecialToken(text='<|endoftext|>'), 'ee', ' four', '\n']
+
+def test_pretokenizer_from_file_multi():
+  special_tokens = ["<|endoftext|>"]
+  out = list(pretokenize(Path('tests/fixtures/tinystories_sample_5M.txt'), max_chunk_size=10_000, num_workers=2))
+  assert len(out) > 1_000_000
