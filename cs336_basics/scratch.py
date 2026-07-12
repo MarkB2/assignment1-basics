@@ -36,3 +36,15 @@ p = PairLoc()
 print(type(p))
 print(p.default_factory)
 # print(p[(b'i', b'r')])
+
+
+# %%
+import numpy as np
+
+tokens = b'this is a word'
+array = np.array([b for b in tokens], dtype='uint16')
+print(array)
+d = dict()
+# d[array]=5
+print(d)
+b't'[0], b'h'[0]
