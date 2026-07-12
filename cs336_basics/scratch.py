@@ -1,4 +1,4 @@
-from cs336_basics.reader import reader, Pattern
+from cs336_basics.pretokenizer import reader, Pattern
 from pathlib import Path
 
 for match in reader("word \n\n\n\n word", Pattern()):
@@ -8,7 +8,7 @@ with open(Path('./text'), 'w') as f:
 for match in reader(Path('./text'), Pattern()):
   print(bytes(match, encoding='utf-8'))
 # %%
-from cs336_basics.reader import Pattern, reader
+from cs336_basics.pretokenizer import Pattern, reader
 pat = Pattern()
 print(pat, pat.pat, pat.p)
 source = "Hello, how <|endoftext|><|endoftext|> are you?<|endoftext|>"

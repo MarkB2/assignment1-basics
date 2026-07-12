@@ -1,5 +1,5 @@
 from collections import Counter
-from cs336_basics.reader import reader, Pattern
+from cs336_basics.pretokenizer import reader, Pattern
 from pathlib import Path
 
 # corpus = Counter(reader(Path("/home/mark/projects/stanford-cs336/assignment1-basics/tests/fixtures/tinystories_sample_5M.txt"), Pattern()))

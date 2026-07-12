@@ -1,13 +1,14 @@
+import gc
+import json
 from collections import Counter, defaultdict
 from collections.abc import Iterator
-import json
 from pathlib import Path
-import gc
-from .types import Pair, Vocab, Merges, Pretoken, PairCount, PairLoc
-from .tokens import Word
 
-from .reader import Reader, Pattern, GPT4_PAT, pretokenize
 from .max_heap import PairMaxHeap
+from .pretokenizer import Pretokenizer
+from .tokens import Word
+from .types import Merges, Pair, PairCount, PairLoc, Pretoken, Vocab
+
 
 class BPETrainer:
   def __init__(self,
@@ -79,30 +80,14 @@ class BPETrainer:
 
     return vocab, merges
 
-# Recursively convert all bytes to latin-1 strings
-def make_json_safe(obj):
-    if isinstance(obj, dict):
-        return {make_json_safe(k): make_json_safe(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [make_json_safe(x) for x in obj]
-    elif isinstance(obj, tuple):
-        return [make_json_safe(x) for x in obj] # JSON arrays become lists
-    elif isinstance(obj, bytes):
-        return obj.decode('latin-1') # Safe for ALL binary data
-    return obj
-
-def serialize(obj, file_name):
-  with open(file_name, 'w') as file:
-    json.dump(make_json_safe(obj), file, indent=4)
-
 def train(input_path: str | Path, vocab_size: int = 32_000,
     special_tokens: list[str] = ['<|endoftext|>']) -> tuple[dict[int, bytes], list[Pair]]:
-  iterator = pretokenize(input_path, special_tokens=special_tokens)
+  iterator = Pretokenizer(special_tokens=special_tokens).iter_file(input_path)
   return BPETrainer(iterator, vocab_size, special_tokens).merge()
 
 def train_and_save(input_path: str | Path, vocab_path: str | Path, merges_path: str | Path,vocab_size: int = 32_000,
-    special_tokens: list[str] = ['<|endoftext|>']) -> None:
-  iterator = pretokenize(input_path, special_tokens=special_tokens)
-  vocab, merges = BPETrainer(iterator, vocab_size, special_tokens).merge()
-  vocab.save(vocab_path)
-  merges.save(merges_path)
+    special_tokens: list[str] = ['<|endoftext|>'], num_workers: int = 4, max_chunk_size:int = 1_000_000) -> None:
+    iterator = Pretokenizer(special_tokens=special_tokens).iter_file(input_path, max_chunk_size, num_workers)
+    vocab, merges = BPETrainer(iterator, vocab_size, special_tokens).merge()
+    vocab.save(vocab_path)
+    merges.save(merges_path)
