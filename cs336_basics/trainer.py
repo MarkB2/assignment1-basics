@@ -18,10 +18,14 @@ class BPETrainer:
   ) -> None:
     self.iterator: Iterator[Pretoken] = iterator
     self.vocab_size: int = vocab_size
-    vocab = Vocab({i: bytes(special_token, encoding='utf-8') for i, special_token in enumerate(special_tokens)})
+    # vocab = Vocab({i: bytes(special_token, encoding='utf-8') for i, special_token in enumerate(special_tokens)})
+    vocab = {}
     for j in range(256):
       vocab[len(vocab)] = bytes([j])
-    self.vocab: Vocab = vocab
+    for special_token in special_tokens:
+      vocab[len(vocab)] = bytes(special_token, encoding='utf-8')
+
+    self.vocab: Vocab = Vocab(vocab)
     self.merges: Merges = Merges()
 
   def build(self) -> tuple[list[Word], PairCount, PairLoc]:
