@@ -59,6 +59,6 @@ print((10, a))
 
 # %%
 def to_bytes(x): return bytes(chr(x), encoding='utf-8')
-
-bb = b"".join([to_bytes(b) for b in [117, 105, 106, 116, 33, 106, 116, 33, 117, 102, 116, 117]])
-[ord(bytes([b])) for b in bb]
+print([i for i in 'that was a wonderful day'.encode('utf-8')], end = ' ')
+# bb = b"".join([to_bytes(b) for b in [117, 105, 106, 116, 33, 106, 116, 33, 117, 102, 116, 117]])
+# [ord(bytes([b])) for b in bb]

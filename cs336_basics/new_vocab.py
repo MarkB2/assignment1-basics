@@ -21,10 +21,10 @@ class Vocab:
         self._forward: dict[int, bytes] = {}
         self._reverse: dict[bytes, int] = {}
         self._next_id: int = 0
-        for tok in special_tokens or []:
-            _ = self.add(tok.encode("utf-8"))
         for i in range(256):
             _ = self.add(bytes([i]))
+        for tok in special_tokens or []:
+            _ = self.add(tok.encode("utf-8"))
 
     def add(self, token: bytes):
         token_id = self._next_id
@@ -49,7 +49,7 @@ class Vocab:
     def id_for(self, token: bytes) -> int:
         return self._reverse[token]
 
-    def to_tokens(self, string: str) -> Iterable[int]:
+    def to_ids(self, string: str) -> Iterable[int]:
         return tuple([self.id_for(bytes([b])) for b in string.encode("utf-8")])
 
     def to_bytes(self, ids: Iterable[int]) -> bytes:
@@ -75,10 +75,9 @@ class Vocab:
 
 
 class Merges(list[IdPair]):
-    def save(self, path: Path | str, vocab: Vocab | None = None) -> None:
-        vocab = vocab or Vocab()
-        save(path, [[s.decode("latin1") for s in pair] for pair in self])
+    def save(self, path: Path | str, vocab: Vocab) -> None:
+        save(path, [[vocab.bytes_for(id).decode("latin1") for id in pair] for pair in self])
 
     @classmethod
-    def load(cls, path: Path | str):
-        return Merges([Pair([s.encode("latin1") for s in pair]) for pair in load(path)])  # pyright: ignore
+    def load(cls, path: Path | str, vocab: Vocab):
+        return Merges([IdPair([vocab.id_for(s.encode("latin1")) for s in pair]) for pair in load(path)])  # pyright: ignore
