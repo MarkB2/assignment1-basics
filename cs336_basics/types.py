@@ -2,10 +2,12 @@ import json
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Self
+from typing import NamedTuple, Self
 
 Pair = tuple[bytes, bytes]
+IdPair = tuple[int, int]
 PairCount = Counter[Pair]
+IdPairCount = Counter[IdPair]
 
 
 class PairLoc(defaultdict[Pair, set[int]]):
@@ -21,6 +23,12 @@ def save(path: Path | str, obj: dict[int, str] | list[list[str]]) -> None:
 def load(path: Path | str) -> dict[int, str] | list[list[str]]:
     with open(path) as f:
         return json.load(f)  # pyright: ignore[reportAny]
+
+
+class MergeResult(NamedTuple):
+    a: int
+    b: int
+    ab: int
 
 
 class Vocab:
@@ -46,6 +54,12 @@ class Vocab:
             return self._reverse[tok_bytes]
         return self.add(tok_bytes)
 
+    def add_merge(self, pair: Pair) -> MergeResult:
+        a, b = pair
+        ab = a + b
+        new_id = self.add(ab)
+        return MergeResult(self.id_for(a), self.id_for(b), new_id)
+
     def bytes_for(self, token_id: int) -> bytes:
         return self._forward[token_id]
 
@@ -59,16 +73,16 @@ class Vocab:
         save(path, {k: v.decode("latin1") for k, v in self._forward.items()})
 
     @classmethod
+    def load(cls, path: Path | str) -> Self:
+        return cls.from_dict({int(k): v.encode("latin1") for k, v in load(path).items()})  # pyright: ignore
+
+    @classmethod
     def from_dict(cls, initial: dict[int, bytes]) -> Self:
         vocab = cls.__new__(cls)
         vocab._forward = initial.copy()
         vocab._reverse = {v: k for k, v in vocab._forward.items()}
         vocab._next_id = max(vocab._forward) + 1
         return vocab
-
-    @classmethod
-    def load(cls, path: Path | str) -> Self:
-        return cls.from_dict({int(k): v.encode("latin1") for k, v in load(path).items()})  # pyright: ignore
 
 
 class Merges(list[Pair]):

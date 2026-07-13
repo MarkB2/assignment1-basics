@@ -48,3 +48,10 @@ d = dict()
 # d[array]=5
 print(d)
 b't'[0], b'h'[0]
+
+
+# %%
+import numpy as np
+
+a = int(np.uint16(105))
+print((10, a))
