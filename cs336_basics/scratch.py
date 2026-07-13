@@ -55,3 +55,10 @@ import numpy as np
 
 a = int(np.uint16(105))
 print((10, a))
+
+
+# %%
+def to_bytes(x): return bytes(chr(x), encoding='utf-8')
+
+bb = b"".join([to_bytes(b) for b in [117, 105, 106, 116, 33, 106, 116, 33, 117, 102, 116, 117]])
+[ord(bytes([b])) for b in bb]
