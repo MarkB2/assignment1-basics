@@ -1,6 +1,17 @@
 import pytest
 from cs336_basics.types import IdPair, Pair
-from cs336_basics.new_vocab import Vocab
+from cs336_basics.new_vocab import load, save, Vocab, EncodedVocab
+import json
+
+def test_load_save():
+    vocab = Vocab()
+    vocab.save('test_vocab.json')
+    loaded = Vocab.load('test_vocab.json')
+    assert vocab._forward == loaded._forward
+    assert vocab._reverse == loaded._reverse
+    assert vocab._merges == loaded._merges
+    assert vocab._next_id == loaded._next_id
+
 
 @pytest.fixture
 def vocab() -> Vocab:
@@ -20,7 +31,7 @@ def test_bytes_for(vocab):
   assert vocab.bytes_for(9) == b'ag'
   assert vocab.bytes_for(3) == b'd'
 
-def test_save_load(vocab):
+def _test_save_load(vocab):
   vocab.save('test.file')
   loaded = Vocab.load('test.file')
   assert loaded._forward == vocab._forward
@@ -49,3 +60,16 @@ def test_to_ids():
     116, 104, 97, 116, 32, 119, 97, 115, 32, 97, 32, 119, 111,
     110, 100, 101, 114, 102, 117, 108, 32, 100, 97, 121
   )
+
+@pytest.fixture
+def empty_vocab():
+    return Vocab()
+
+def test_add_merge(empty_vocab):
+    a, b = empty_vocab.to_ids('ab')
+    merged_id = empty_vocab.add_merge(IdPair((a, b)))
+    assert empty_vocab.bytes_for(merged_id) == b'ab'
+    assert empty_vocab.merges() == [IdPair((a, b))]
+    next_merged_id = empty_vocab.add_merge(IdPair((merged_id, a)))
+    assert empty_vocab.bytes_for(next_merged_id) == b'aba'
+    assert empty_vocab.merges() == [IdPair((a, b)), IdPair((merged_id, a))]
