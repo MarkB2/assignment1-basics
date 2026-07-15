@@ -1,5 +1,6 @@
 import numpy as np
 from typing import final
+from collections.abc import Iterable
 from .types import IdPairCount, MergeResult, Vocab, Merges, Pair, PairCount, IdPair
 
 
@@ -7,28 +8,28 @@ from .types import IdPairCount, MergeResult, Vocab, Merges, Pair, PairCount, IdP
 def to_bytes(string: str, offset: int = 0) -> np.ndarray:
     return np.array([b + offset for b in bytes(string, encoding="utf-8")], dtype='uint16')
 
+def found_at(tokens: np.ndarray, pos: int, pair: IdPair) -> bool:
+    return pos < tokens.size - 1 and tokens[pos] == pair[0] and tokens[pos + 1] == pair[1]
+
 
 @final
 class NewWord:
     # Word contains id tokens and frequency of its appearance,
     # tokens offsetted by number special_tokens
-    def __init__(self, string: str, freq: int = 1, offset:int = 0) -> None:
-        self.tokens: np.ndarray = to_bytes(string, offset)
+    def __init__(self, tokens: Iterable[int], freq: int = 1) -> None:
+        self.tokens: np.ndarray = np.array(tokens, dtype='uint16')
         self.freq = freq
 
     # Checks if pair found at pos
     def found_at(self, pos: int, pair: IdPair) -> bool:
-        if pos + 2 <= len(self.tokens):
-          return (self.tokens[pos : pos + 2] == pair).all()
-        return False
+        return found_at(self.tokens, pos, pair)
 
     def pairs(self) -> list[IdPair]:
         return list(zip(self.tokens, self.tokens[1:]))
 
     # Merge the pair if found
-    def merge(self, merge_result: MergeResult) -> IdPairCount:
-        a, b, ab = merge_result
-        pair = (a, b)
+    def merge(self, pair: IdPair, ab: int) -> IdPairCount:
+        a, b = pair
         i, new_tokens, updates = 0, [], IdPairCount()
         while i < len(self.tokens):
             if self.found_at(i, pair):

@@ -14,6 +14,10 @@ class PairLoc(defaultdict[Pair, set[int]]):
     def __init__(self):
         super().__init__(set)
 
+class IdPairLoc(defaultdict[IdPair, set[int]]):
+    def __init__(self):
+        super().__init__(set)
+
 
 def save(path: Path | str, obj: dict[int, str] | list[list[str]]) -> None:
     with open(path, "w") as f:

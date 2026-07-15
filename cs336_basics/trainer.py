@@ -3,11 +3,14 @@ import json
 from collections import Counter, defaultdict
 from collections.abc import Iterator
 from pathlib import Path
+from typing import cast
 
-from .max_heap import PairMaxHeap
+from .max_id_heap import PairMaxHeap
 from .pretokenizer import Pretokenizer
-from .tokens import Word
-from .types import Merges, Pair, PairCount, PairLoc, Pretoken, Vocab
+from .new_tokens import NewWord
+from .new_vocab import Vocab
+from .types import IdPair, IdPairCount, IdPairLoc, Pretoken #, Vocab
+
 
 
 class BPETrainer:
@@ -19,39 +22,34 @@ class BPETrainer:
     ) -> None:
         self.iterator: Iterator[Pretoken] = iterator
         self.vocab_size: int = vocab_size
-        vocab = Vocab({i: bytes(special_token, encoding="utf-8") for i, special_token in enumerate(special_tokens)})
-        for j in range(256):
-            vocab[len(vocab)] = bytes([j])
-        self.vocab: Vocab = vocab
-        self.merges: Merges = Merges()
+        self.vocab: Vocab = Vocab(special_tokens)
 
-    def build(self) -> tuple[list[Word], PairCount, PairLoc]:
+    def build(self) -> tuple[list[NewWord], IdPairCount, IdPairLoc]:
         corpus: Counter[Pretoken] = Counter(self.iterator)
-        words = [Word(word, freq) for word, freq in corpus.items()]
+        words = [NewWord(self.vocab.to_ids(cast(str, word)), freq) for word, freq in corpus.items()]
         pair_counts, pair_locs = self.get_counts(words)
         return words, pair_counts, pair_locs
 
     @classmethod
-    def get_counts(cls, words: list[Word]) -> tuple[PairCount, PairLoc]:
-        pair_counts, pair_locs = PairCount(), PairLoc()
+    def get_counts(cls, words: list[NewWord]) -> tuple[IdPairCount, IdPairLoc]:
+        pair_counts, pair_locs = IdPairCount(), IdPairLoc()
         for loc, word in enumerate(words):
             for pair in word.pairs():
                 pair_counts[pair] += word.freq
                 pair_locs[pair].add(loc)
         return pair_counts, pair_locs
 
-    def merge(self) -> tuple[Vocab, Merges]:
+    def merge(self) -> Vocab:
         words, pair_counts, pair_locs = self.build()
         _ = gc.collect()
-        heap, vocab, merges = PairMaxHeap(pair_counts), self.vocab, self.merges
-        i, pair = len(vocab), heap.get_best()
+        heap, vocab = PairMaxHeap(pair_counts), self.vocab
+        pair = heap.get_best()
+        i = len(vocab)
         while pair and i < self.vocab_size:
-            global_updates: Counter[Pair] = Counter()
-            merges.append(pair)
-            a, b = pair
-            vocab[i] = a + b
+            global_updates = IdPairCount()
+            merged_id = vocab.add_merge(pair)
             for loc in list(pair_locs[pair]):
-                updates = words[loc].merge(pair)
+                updates = words[loc].merge(pair, merged_id)
                 for updated_pair in updates.keys():
                     if updated_pair in words[loc].pairs():
                         pair_locs[updated_pair].add(loc)
@@ -70,26 +68,25 @@ class BPETrainer:
                     del pair_locs[key]
                 _ = gc.collect()
 
-        return vocab, merges
+        return vocab
 
 
 def train(
     input_path: str | Path, vocab_size: int = 32_000, special_tokens: list[str] = ["<|endoftext|>"]
-) -> tuple[dict[int, bytes], list[Pair]]:
+) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
     iterator = Pretokenizer(special_tokens=special_tokens).iter_file(input_path)
-    return BPETrainer(iterator, vocab_size, special_tokens).merge()
+    vocab = BPETrainer(iterator, vocab_size, special_tokens).merge()
+    return vocab._forward, [tuple([vocab.bytes_for(b) for b in pair]) for pair in vocab.merges()]  # pyright ignore
 
 
 def train_and_save(
     input_path: str | Path,
     vocab_path: str | Path,
-    merges_path: str | Path,
     vocab_size: int = 32_000,
     special_tokens: list[str] = ["<|endoftext|>"],
     num_workers: int = 4,
     max_chunk_size: int = 1_000_000,
 ) -> None:
     iterator = Pretokenizer(special_tokens=special_tokens).iter_file(input_path, max_chunk_size, num_workers)
-    vocab, merges = BPETrainer(iterator, vocab_size, special_tokens).merge()
+    vocab = BPETrainer(iterator, vocab_size, special_tokens).merge()
     vocab.save(vocab_path)
-    merges.save(merges_path)
