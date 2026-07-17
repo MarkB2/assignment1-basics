@@ -72,7 +72,7 @@ class BPETrainer:
                 keys = [k for k, v in pair_locs.items() if v == set()]
                 for key in keys:
                     del pair_locs[key]
-                heap.build()
+                # heap.build()
                 # current, peak = tracemalloc.get_traced_memory()
                 # print(f"Before GC.collect current={current/1e6:.1f}MB peak={peak/1e6:.1f}MB")
                 _ = gc.collect()
