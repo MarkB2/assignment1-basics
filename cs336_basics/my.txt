@@ -1,0 +1,3 @@
+OK, then explain please following behavior:
+
+I ran three versions: first only prevent unboxing (new_token.append(int(self.token[i]))​), second create new_token = np.empty(len, dtype)​, but at the end make self.tokens = new_tokens[:pos]​ and the third one make `self.tokens = new_tokens[:pos].copy()​. Why the second one is more memory hangry?

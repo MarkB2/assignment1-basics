@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Find the N most recent mprofile*.dat files and open a plot for each,
+# using the timestamp embedded in the filename as the plot title.
+#
+# Usage:
+#   ./plot_recent.sh 3          # plot the 3 most recent mprofile*.dat files
+#   ./plot_recent.sh            # defaults to 5
+
+set -euo pipefail
+
+N="${1:-5}"
+
+# List mprofile*.dat files sorted by modification time (newest first), take top N
+mapfile -t FILES < <(ls -t mprofile*.dat 2>/dev/null | head -n "$N")
+
+if [[ ${#FILES[@]} -eq 0 ]]; then
+    echo "No mprofile*.dat files found in current directory." >&2
+    exit 1
+fi
+
+for FILE in "${FILES[@]}"; do
+    # Extract timestamp from filename, e.g. mprofile_20260717143330.dat -> 20260717143330
+    RAW_TIMESTAMP=$(echo "$FILE" | grep -oP '(?<=mprofile_)\d+(?=\.dat)')
+
+    if [[ -z "$RAW_TIMESTAMP" ]]; then
+        echo "Could not extract timestamp from $FILE, skipping." >&2
+        continue
+    fi
+
+    # Reformat 20260717143330 -> 2026-07-17 14:33:30
+    TITLE="${RAW_TIMESTAMP:0:4}-${RAW_TIMESTAMP:4:2}-${RAW_TIMESTAMP:6:2} ${RAW_TIMESTAMP:8:2}:${RAW_TIMESTAMP:10:2}:${RAW_TIMESTAMP:12:2}"
+
+    echo "Plotting $FILE (title: $TITLE)"
+    mprof plot --title "$TITLE" "$FILE" &
+done
+
+wait
