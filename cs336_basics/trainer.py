@@ -63,21 +63,21 @@ class BPETrainer:
             heap.update(global_updates)
             i += 1
             pair = heap.get_best()
-            if i % 1000 == 0:
-                pair_counts, pair_locs = self.get_counts(words)
-                heap = PairMaxHeap(pair_counts)
-                # keys = [k for k, v in pair_counts.items() if v <= 0]
-                # for key in keys:
-                #     del pair_counts[key]
-                # keys = [k for k, v in pair_locs.items() if v == set()]
-                # for key in keys:
-                #     del pair_locs[key]
-                # heap.build()
-                current, peak = tracemalloc.get_traced_memory()
-                print(f"Before GC.collect current={current/1e6:.1f}MB peak={peak/1e6:.1f}MB")
+            if i % 5000 == 0:
+                # pair_counts, pair_locs = self.get_counts(words)
+                # heap = PairMaxHeap(pair_counts)
+                keys = [k for k, v in pair_counts.items() if v <= 0]
+                for key in keys:
+                    del pair_counts[key]
+                keys = [k for k, v in pair_locs.items() if v == set()]
+                for key in keys:
+                    del pair_locs[key]
+                heap.build()
+                # current, peak = tracemalloc.get_traced_memory()
+                # print(f"Before GC.collect current={current/1e6:.1f}MB peak={peak/1e6:.1f}MB")
                 _ = gc.collect()
-                current, peak = tracemalloc.get_traced_memory()
-                print(f"After GC.collect current={current/1e6:.1f}MB peak={peak/1e6:.1f}MB")
+                # current, peak = tracemalloc.get_traced_memory()
+                # print(f"After GC.collect current={current/1e6:.1f}MB peak={peak/1e6:.1f}MB")
 
         return vocab
 
