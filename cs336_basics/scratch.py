@@ -62,3 +62,10 @@ def to_bytes(x): return bytes(chr(x), encoding='utf-8')
 print([i for i in 'that was a wonderful day'.encode('utf-8')], end = ' ')
 # bb = b"".join([to_bytes(b) for b in [117, 105, 106, 116, 33, 106, 116, 33, 117, 102, 116, 117]])
 # [ord(bytes([b])) for b in bb]
+
+# %%
+import numpy as np
+
+a = np.array([1,2,3])
+b = a[1]
+type(b), type(int(b))

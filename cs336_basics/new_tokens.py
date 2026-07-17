@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import numpy as np
 from typing import final
 from collections.abc import Iterable
@@ -11,6 +13,20 @@ def to_bytes(string: str, offset: int = 0) -> np.ndarray:
 def found_at(tokens: np.ndarray, pos: int, pair: IdPair) -> bool:
     return pos < tokens.size - 1 and tokens[pos] == pair[0] and tokens[pos + 1] == pair[1]
 
+class NewTokens:
+  def __init__(self, length: int) -> None:
+    self.pos : int = 0
+    self.tokens: np.ndarray = np.empty(length, dtype="uint16")
+
+  def is_empty(self) -> bool:
+    return self.pos == 0
+
+  def add(self, token: int) -> None:
+    self.tokens[self.pos] = token
+    self.pos += 1
+
+  def copy(self) -> np.ndarray:
+    return self.tokens[:self.pos]
 
 @final
 class NewWord:
@@ -30,21 +46,24 @@ class NewWord:
     # Merge the pair if found
     def merge(self, pair: IdPair, ab: int) -> IdPairCount:
         a, b = pair
-        i, new_tokens, updates = 0, [], IdPairCount()
+        i, j, updates = 0, 0, IdPairCount()
+        new_tokens = np.empty(len(self.tokens), dtype='uint16')
         while i < len(self.tokens):
             if self.found_at(i, pair):
-                if new_tokens:
+                if j > 0: #new_tokens:
                     prev = int(self.tokens[i - 1])
                     updates[(prev, a)] -= self.freq
                     updates[(prev, ab)] += self.freq
                 updates[pair] -= self.freq
-                new_tokens.append(ab)
+                new_tokens[j] = ab
+                j += 1
 
                 while self.found_at(i + 2, pair):
                     updates[(ab, ab)] += self.freq
                     updates[(a, b)] -= self.freq
                     updates[(b, a)] -= self.freq
-                    new_tokens.append(ab)
+                    new_tokens[j] = ab
+                    j += 1
                     i += 2
 
                 look = i + 2
@@ -54,8 +73,9 @@ class NewWord:
                     updates[(ab, nxt)] += self.freq
                 i += 2
             else:
-                new_tokens.append(self.tokens[i])
+                new_tokens[j] = self.tokens[i]
+                j += 1
                 i += 1
 
-        self.tokens = np.array(new_tokens, dtype='uint16')
+        self.tokens = new_tokens[:j].copy()
         return updates

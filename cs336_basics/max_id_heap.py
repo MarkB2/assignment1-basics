@@ -1,7 +1,7 @@
 import heapq
 from dataclasses import dataclass
 
-from typing_extensions import final
+from typing import final
 from .types import IdPair, IdPairCount
 
 @dataclass
@@ -18,8 +18,12 @@ class MaxNode:
 class PairMaxHeap:
     def __init__(self, pair_counts: IdPairCount) -> None:
         self.pair_counts = pair_counts
-        self.heap = [MaxNode(count, pair) for pair, count in pair_counts.items()]
+        self.build()
+
+    def build(self) -> None:
+        self.heap = [MaxNode(count, pair) for pair, count in self.pair_counts.items() if count > 0]
         heapq.heapify(self.heap)
+
 
     def update(self, deltas: IdPairCount) -> None:
         for pair, delta in deltas.items():
