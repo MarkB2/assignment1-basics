@@ -10,7 +10,7 @@ from .pretokenizer import Pretokenizer
 from .new_tokens import NewWord
 from .new_vocab import Vocab
 from .types import IdPair, IdPairCount, IdPairLoc, Pretoken #, Vocab
-import tracemalloc
+# import tracemalloc
 
 
 
@@ -47,7 +47,7 @@ class BPETrainer:
         pair = heap.get_best()
         i = len(vocab)
         #
-        tracemalloc.start()
+        # tracemalloc.start()
         #
         while pair and i < self.vocab_size:
             global_updates = IdPairCount()
