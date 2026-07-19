@@ -6,6 +6,8 @@ from .types import IdPair, IdPairCount
 
 @dataclass
 class MaxNode:
+    __slots__ = ('count', 'pair')
+
     count: int
     pair: IdPair
 

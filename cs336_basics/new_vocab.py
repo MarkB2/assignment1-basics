@@ -21,11 +21,11 @@ def load(path: Path | str) -> EncodedVocab:
         return EncodedVocab(*json.load(f))  # pyright: ignore[reportAny]
 
 
-def decode(b: bytes) -> str:
+def decode_latin(b: bytes) -> str:
     return b.decode("latin1")
 
 
-def encode(s: str) -> bytes:
+def encode_latin(s: str) -> bytes:
     return s.encode("latin1")
 
 
@@ -80,8 +80,8 @@ class Vocab:
         save(
             path,
             EncodedVocab(
-                {str(k): decode(v) for k, v in self._forward.items()},
-                [[decode(self.bytes_for(b)) for b in pair] for pair in self._merges],
+                {str(k): decode_latin(v) for k, v in self._forward.items()},
+                [[decode_latin(self.bytes_for(b)) for b in pair] for pair in self._merges],
             ),
         )
 
@@ -92,8 +92,8 @@ class Vocab:
     @classmethod
     def from_dict(cls, source: EncodedVocab) -> Self:
         vocab = cls.__new__(cls)
-        vocab._forward = {int(k): encode(v) for k, v in source.vocab.items()}
+        vocab._forward = {int(k): encode_latin(v) for k, v in source.vocab.items()}
         vocab._reverse = {v: k for k, v in vocab._forward.items()}
-        vocab._merges = [IdPair(tuple(vocab.id_for(encode(b)) for b in pair)) for pair in source.merges]
+        vocab._merges = [IdPair(tuple(vocab.id_for(encode_latin(b)) for b in pair)) for pair in source.merges]
         vocab._next_id = max(vocab._forward) + 1
         return vocab
