@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from .types import IdPairCount, MergeResult, Vocab, Merges, Pair, PairCount, IdPair
 
 
+
 # Converts string to tuple of bytes
 def to_bytes(string: str, offset: int = 0) -> np.ndarray:
     return np.array([b + offset for b in bytes(string, encoding="utf-8")], dtype='uint16')
@@ -33,7 +34,7 @@ class NewWord:
     # Word contains id tokens and frequency of its appearance,
     # tokens offsetted by number special_tokens
     __slots__ = ('tokens', 'freq')
-    
+
     def __init__(self, tokens: Iterable[int], freq: int = 1) -> None:
         self.tokens: np.ndarray = np.array(tokens, dtype='uint16')
         self.freq = freq

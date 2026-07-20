@@ -1,7 +1,7 @@
 import pytest
 
-from cs336_basics.new_vocab import EncodedVocab, Vocab
-from cs336_basics.types import IdPair, Pair
+from cs336_basics.new_vocab import EncodedVocab, Vocab, TieBreaker
+cs336_basics.types import IdPair, Pair
 
 
 def test_load_save():

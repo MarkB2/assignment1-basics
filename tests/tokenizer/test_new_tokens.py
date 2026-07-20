@@ -1,8 +1,16 @@
+import sys
+import numpy as np
 import pytest
 
 from cs336_basics.new_tokens import NewWord
 from cs336_basics.new_vocab import Vocab
-from cs336_basics.types import IdPairCount
+from cs336_basics.types import IdPairCount, EncodedPair, encode_pair, decode_pair
+
+def test_encode_decode_pair():
+    pair = (31987, 31897)
+    assert encode_pair(pair) == 31987 * 65536 + 31897
+    assert decode_pair(encode_pair(pair)) == pair
+    assert encode_pair(pair) > encode_pair((pair[1], pair[0]))
 
 
 @pytest.fixture
