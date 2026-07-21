@@ -3,14 +3,14 @@ from dataclasses import dataclass
 from typing import final
 
 from .new_vocab import TieBreaker
-from .types import EncodedPair, EncodedPairCount
+from .types import PackedPair, PackedPairCount
 
 
 @dataclass(slots=True)
 class MaxNode:
     count: int
-    pair: EncodedPair
-    tie_breaker: TieBreaker
+    pair: PackedPair
+    tie_breaker: TieBreaker = field(compare=False)
 
     def __lt__(self, other: "MaxNode"):
         if self.count != other.count:
@@ -20,16 +20,16 @@ class MaxNode:
 
 @final
 class PairMaxHeap:
-    def __init__(self, pair_counts: EncodedPairCount, tie_breaker: TieBreaker) -> None:
+    def __init__(self, pair_counts: PackedPairCount, tie_breaker: TieBreaker) -> None:
         self.pair_counts = pair_counts
         self._tie_breaker = tie_breaker
         self.heap = [self.make_node(count, pair) for pair, count in pair_counts.items()]
         heapq.heapify(self.heap)
 
-    def make_node(self, count: int, pair: EncodedPair):
+    def make_node(self, count: int, pair: PackedPair):
         return MaxNode(count, pair, self._tie_breaker)
 
-    def update(self, deltas: EncodedPairCount) -> None:
+    def update(self, deltas: PackedPairCount) -> None:
         for pair, delta in deltas.items():
             self.pair_counts[pair] += delta
             freq = self.pair_counts[pair]
@@ -38,7 +38,7 @@ class PairMaxHeap:
             else:
                 del self.pair_counts[pair]
 
-    def get_best(self) -> EncodedPair | None:
+    def get_best(self) -> PackedPair | None:
         while self.heap:
             best = heapq.heappop(self.heap)
             if best.count == self.pair_counts.get(best.pair):

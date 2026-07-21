@@ -1,8 +1,8 @@
 import pytest
 
 from cs336_basics.new_vocab import EncodedVocab, Vocab, TieBreaker
-cs336_basics.types import IdPair, Pair
-
+from cs336_basics.types import IdPair, Pair, PackedPair, pack_pair, unpack_pair
+from .helpers import to_encoded_pairs
 
 def test_load_save():
     vocab = Vocab()
@@ -16,7 +16,7 @@ def test_load_save():
 @pytest.fixture
 def vocab() -> Vocab:
     v = Vocab(["<|endoftext|>"])
-    for pair in [IdPair([v.id_for(b) for b in p]) for p in [(b"a", b"b"), (b"c", b"d"), (b"e", b"f")]]:
+    for pair in [pack_pair(IdPair([v.id_for(b) for b in p])) for p in [(b"a", b"b"), (b"c", b"d"), (b"e", b"f")]]:
         _ = v.add_merge(pair)
     _ = v.add_special_token("<|endofchapter|>")
     return v
@@ -35,9 +35,9 @@ def test_bytes_for(vocab: Vocab):
 
 
 def test_merge(vocab: Vocab):
-    assert vocab.merges() == [(98, 99), (100, 101), (102, 103)]
-    assert vocab.add_merge((257, 258)) == 261
-    assert vocab.merges() == [(98, 99), (100, 101), (102, 103), (257, 258)]
+    assert vocab.merges() == to_encoded_pairs([(98, 99), (100, 101), (102, 103)])
+    assert vocab.add_merge(pack_pair((257, 258))) == 261
+    assert vocab.merges() == to_encoded_pairs([(98, 99), (100, 101), (102, 103), (257, 258)])
 
 
 def test_len(vocab):
@@ -107,3 +107,21 @@ def test_to_ids():
         97,
         121,
     )
+
+def test_tie_breaker(vocab: Vocab):
+  tie_breaker = TieBreaker(vocab)
+  id1 = vocab.add(b'abc')
+  id2 = vocab.add(b'abd')
+  id3 = vocab.add(b'cba')
+  assert [id1, id2, id3] == [261, 262, 263]
+  pair1 = pack_pair((id1, id2)) # b'abc' b'abd'
+  _ = vocab.add_merge(pair1)
+  pair2 = pack_pair((id1, id1)) # b'abc' b'abc'
+  _ = vocab.add_merge(pair2)
+  pair3 = pack_pair((id3, id2)) # b'cba' b'abd'
+  _ = vocab.add_merge(pair3)
+  assert tie_breaker.lex_greater(pair1, pair2)
+  assert tie_breaker.lex_greater(pair3, pair1)
+  assert tie_breaker.lex_greater(pair3, pair2)
+  assert not tie_breaker.lex_greater(pair1, pair3)
+  assert not tie_breaker.lex_greater(pair2, pair3)

@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from cs336_basics.pretokenizer import reader, Pattern
 from pathlib import Path
 
@@ -65,7 +67,44 @@ print([i for i in 'that was a wonderful day'.encode('utf-8')], end = ' ')
 
 # %%
 import numpy as np
+from timeit import timeit
+from collections.abc import Callable
 
-a = np.array([1,2,3])
-b = a[1]
-type(b), type(int(b))
+a = np.array([1,2,3,2,1,1,5], dtype='uint16')
+b = np.array([1,2,6,1,1,5], dtype='uint16')
+
+def pair_diff(old_pairs: np.ndarray, new_pairs: np.ndarray) -> np.ndarray:
+    old_packed = old_pairs.astype(np.uint32)[:-1] << 16 | old_pairs[1:]
+    new_packed = new_pairs.astype(np.uint32)[:-1] << 16 | new_pairs[1:]
+
+    all_packed = np.concatenate([old_packed, new_packed])
+    weights = np.concatenate([
+        -np.ones(len(old_packed), dtype=np.int64),   # old pairs: -1 each (being removed)
+        np.ones(len(new_packed), dtype=np.int64),    # new pairs: +1 each (being added)
+    ])
+
+    unique_pairs, inverse = np.unique(all_packed, return_inverse=True)
+    diff_counts = np.bincount(inverse, weights=weights).astype(np.int64)
+
+    # drop entries where diff is zero — pair appeared equally in both, net no change
+    nonzero = diff_counts != 0
+    return np.column_stack([unique_pairs[nonzero], diff_counts[nonzero]])
+
+def check_it(c: Callable, number=1000):
+  print(f"{timeit(c, number=number)/number*1e6:.2f} um/call")
+
+# timeit(lambda: pair_diff(a,b), number=1000)/1000
+check_it(lambda: pair_diff(a,b))
+
+def aa():
+  d = {}
+  d['a']=1
+  d['b']=2
+  d['c']=3
+  return d
+
+check_it(lambda: aa())
+
+# %%
+a = 6357097
+print(a >> 16, a & 0xFFFF)

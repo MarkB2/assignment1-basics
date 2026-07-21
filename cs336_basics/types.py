@@ -9,15 +9,14 @@ IdPair = tuple[int, int]
 PairCount = Counter[Pair]
 IdPairCount = Counter[IdPair]
 
-EncodedPair = int
+PackedPair = int
 
-EncodedPairCount = Counter[EncodedPair]
+PackedPairCount = Counter[PackedPair]
 
-def encode_pair(pair: tuple[int, int]) -> EncodedPair:
-    a, b = pair
+def pack_pair(a:int, b:int) -> PackedPair:
     return (a << 16) | b
 
-def decode_pair(enc_pair: EncodedPair) -> tuple[int, int]:
+def unpack_pair(enc_pair: PackedPair) -> tuple[int, int]:
     return enc_pair >> 16, enc_pair & 0xFFFF
 
 
@@ -29,7 +28,7 @@ class IdPairLoc(defaultdict[IdPair, set[int]]):
     def __init__(self):
         super().__init__(set)
 
-class EncodedPairLoc(defaultdict[EncodedPair, set[int]]):
+class PackedPairLoc(defaultdict[PackedPair, set[int]]):
     def __init__(self):
         super().__init__(set)
 
