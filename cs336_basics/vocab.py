@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import NamedTuple, Self, cast, final
 
-from .types import PackedPair, unpack_pair, pack_pair
+from .types import PackedPair, TieBreak, unpack_pair, pack_pair
 
 
 class EncodedVocab(NamedTuple):
@@ -36,7 +36,7 @@ class Vocab:
         self._merges: list[PackedPair] = []
         self._next_id: int = 0
         for tok in special_tokens or []:
-            _ = self.add(tok.encode("utf-8"))
+            _ = self.add_special_token(tok)
         for i in range(256):
             _ = self.add(bytes([i]))
 
@@ -113,11 +113,39 @@ class VocabCodec:
     def decode(self, ids: Iterable[int]) -> bytes:
         return b"".join([self._vocab.bytes_for(b) for b in ids])
 
+class TieBrakeCache:
+    def __init__(self) -> None:
+        self._cache: dict[int, bool] = {}
+
+    @staticmethod
+    def _pack(a: PackedPair, b: PackedPair) -> int:
+        return (a << 32) | b
+
+    def _canonical_key(self, a: PackedPair, b: PackedPair) -> tuple[int, bool]:
+        swapped = b > a
+        return self._pack(a, b) if not swapped else self._pack(b, a), swapped
+
+    def get(self, a: PackedPair, b: PackedPair, tie_break: TieBreak) -> bool:
+        key, swapped = self._canonical_key(a, b)
+        if key not in self._cache:
+            self._cache[key] = tie_break(a, b) if not swapped else tie_break(b, a)
+        return self._cache[key] if not swapped else not self._cache[key]
+
+    def __len__(self):
+        return len(self._cache)
+
+    def __contains__(self, key: int) -> bool:
+        return key in self._cache
+
 
 @final
 class TieBreaker:
     def __init__(self, vocab: Vocab) -> None:
         self._vocab = vocab
+        self._cache = TieBrakeCache()
+
+    def greater(self, a: PackedPair, b: PackedPair) -> bool:
+        return self._cache.get(a, b, self.lex_greater)
 
     def tuple_for(self, pair: tuple[int, int]) -> tuple[bytes, ...]:
         return tuple([self._vocab.bytes_for(b) for b in pair])

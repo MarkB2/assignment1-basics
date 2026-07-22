@@ -1,5 +1,6 @@
 import json
 from collections import Counter, defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import NamedTuple, Self
@@ -13,8 +14,12 @@ PackedPair = int
 
 PackedPairCount = Counter[PackedPair]
 
-def pack_pair(a:int, b:int) -> PackedPair:
+TieBreak = Callable[[PackedPair, PackedPair], bool]
+
+
+def pack_pair(a: int, b: int) -> PackedPair:
     return (a << 16) | b
+
 
 def unpack_pair(enc_pair: PackedPair) -> tuple[int, int]:
     return enc_pair >> 16, enc_pair & 0xFFFF
@@ -24,9 +29,11 @@ class PairLoc(defaultdict[Pair, set[int]]):
     def __init__(self):
         super().__init__(set)
 
+
 class IdPairLoc(defaultdict[IdPair, set[int]]):
     def __init__(self):
         super().__init__(set)
+
 
 class PackedPairLoc(defaultdict[PackedPair, set[int]]):
     def __init__(self):
