@@ -1,0 +1,35 @@
+Twelve methods isn't unreasonable on its own — but looking at what they actually group into, there are really **three distinct responsibilities** bundled into one class, and that's the more useful lens than raw method count:
+
+**1. Core vocab (the essential job):** `add`, `add_special_token`, `bytes_for`, `id_for`, `__len__` — this is genuinely "what a Vocab is": a bidirectional id↔bytes mapping that grows.
+
+**2. Merge tracking:** `add_merge`, `merges()` — this is the coupling you already flagged yourself a few messages back ("Vocab now tightly coupled to Merges"). You decided to keep it folded in for now, which is reasonable — I won't relitigate that.
+
+**3. Serialization:** `save`, `load`, `from_dict` — this is the one I'd actually pull out. A few concrete problems with keeping it inline:
+
+- **Naming collision, real confusion risk**: you have module-level `encode(s: str) -> bytes` / `decode(b: bytes) -> str` (latin1 string↔bytes, for JSON-safety) *and* instance methods `to_ids`/`to_bytes` that do something conceptually similar but semantically different (utf-8 string↔token-id sequence). Someone reading `vocab.py` cold has to hold four different encode/decode-flavored functions in their head simultaneously, two free, two methods, similar names, different jobs. This is exactly the naming-clarity problem from your Pretokenizer session, recurring in a new spot.
+
+- **`Vocab.save`/`Vocab.load` are just thin wrappers around the free `save`/`load` functions**, doing the dict-comprehension transform to/from `EncodedVocab`. That transform logic is meaningfully separate from "what a vocab does at runtime" — it's specifically "how do I turn a vocab into a JSON-safe format," which is a serialization *format* concern, not a vocab *behavior* concern.
+
+**Suggested split**: pull serialization into its own module-level functions (or a small `VocabCodec`/`VocabIO`-style set of functions, echoing the earlier pattern), operating *on* a `Vocab` rather than living *inside* it:
+
+```python
+# vocab_io.py or bottom of same file, but separated conceptually
+def vocab_to_encoded(vocab: Vocab) -> EncodedVocab:
+    return EncodedVocab(
+        {str(k): decode(v) for k, v in vocab._forward.items()},
+        [[decode(vocab.bytes_for(b)) for b in pair] for pair in vocab._merges],
+    )
+
+def encoded_to_vocab(source: EncodedVocab) -> Vocab:
+    ...  # current from_dict body, unchanged
+
+def save_vocab(path: Path | str, vocab: Vocab) -> None:
+    save(path, vocab_to_encoded(vocab))
+
+def load_vocab(path: Path | str) -> Vocab:
+    return encoded_to_vocab(load(path))
+```
+
+This does mean `vocab_to_encoded`/`encoded_to_vocab` need access to `Vocab`'s private fields (`_forward`, `_merges`) from outside the class — which is a legitimate tradeoff, not free. If that bothers you, keeping `save`/`load`/`from_dict` as `Vocab` methods but simply **renaming the module-level `encode`/`decode` functions** (e.g. `latin1_encode`/`latin1_decode`, since that's what they actually are — a JSON-safety encoding, not vocabulary encoding) would resolve the naming-collision confusion with much less structural change, while leaving the responsibility question for another day.
+
+**My actual recommendation given where you are in this project** (mid-optimization pass, want to keep momentum): do the **cheap rename fix now** (`encode`/`decode` → `latin1_encode`/`latin1_decode`, removes the confusing naming collision in five minutes), and leave the bigger save/load extraction as a "if `Vocab` keeps growing, revisit" item rather than a right-now blocker — twelve cohesive-ish methods isn't an emergency, confusing overlapping names are a sharper, cheaper-to-fix problem.

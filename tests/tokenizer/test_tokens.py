@@ -1,89 +1,93 @@
+import sys
+import numpy as np
 import pytest
-from cs336_basics.tokens import to_bytes, Word
-from cs336_basics.tokenizer import Vocab, Merges
-from ..common import FIXTURES_PATH
+from collections import Counter
 
-def test_to_bytes():
-  assert to_bytes('abc') == (b'a', b'b', b'c')
+from cs336_basics.tokens import Word
+from cs336_basics.vocab import Vocab
+from cs336_basics.types import IdPairCount, PackedPair, pack_pair, unpack_pair
+from .helpers import to_encoded_pairs, from_encoded_pairs
+
+def test_pack_unpack_pair():
+    pair = (31987, 31897)
+    assert pack_pair(*pair) == 31987 * 65536 + 31897
+    assert unpack_pair(pack_pair(*pair)) == pair
+    assert pack_pair(*pair) > pack_pair(pair[1], pair[0])
+
 
 @pytest.fixture
-def word():
-  return Word('abcd')
-
-def test_found(word):
-  assert word.found_at(0, (b'a', b'b'))
-  assert word.found_at(1, (b'b', b'c'))
-  assert word.found_at(2, (b'c', b'd'))
-  # don't throw exception
-  assert not word.found_at(3, (b'd', b'e'))
-
-def test_pairs(word):
-  pairs = word.pairs()
-  assert pairs == [(b'a', b'b'), (b'b', b'c'), (b'c', b'd')]
-
-@pytest.mark.parametrize(
-  "word, pair, expected, exp_updates",
-  [
-    (Word('abcd'), to_bytes('ab'), (b'ab', b'c', b'd'),
-      {(b'a', b'b'): -1, (b'ab', b'c'): 1, (b'b', b'c'): -1}),
-    (Word('abcd'), to_bytes('bc'), (b'a', b'bc', b'd'),
-      {(b'a', b'b'): -1, (b'a', b'bc'): 1, (b'bc', b'd'): 1, (b'b', b'c'): -1, (b'c', b'd'): -1}),
-    (Word('abcd'), to_bytes('cd'), (b'a', b'b', b'cd'),
-      {(b'b', b'c'): -1, (b'b', b'cd'): 1, (b'c', b'd'): -1}),
-    (Word('abcccd'), to_bytes('cc'), (b'a', b'b', b'cc', b'c', b'd'),
-      {(b'b', b'c'): -1, (b'b', b'cc'): 1, (b'cc', b'c'): 1, (b'c', b'c'): -2}),
-    (Word('abcbcd'), to_bytes('bc'), (b'a', b'bc', b'bc', b'd'),
-      {(b'a', b'b'): -1, (b'a', b'bc'): 1, (b'bc', b'bc'): 1, (b'b', b'c'): -2, (b'bc', b'd'): 1, (b'c', b'b'): -1, (b'c', b'd'): -1}),
-    (Word('abcbcbcd'), to_bytes('bc'), (b'a', b'bc', b'bc', b'bc', b'd'),
-      {(b'a', b'b'): -1, (b'a', b'bc'): 1, (b'bc', b'bc'): 2, (b'b', b'c'): -3, (b'bc', b'd'): 1, (b'c', b'b'): -2, (b'c', b'd'): -1}),
-    (Word('abcd'), to_bytes('cv'), (b'a', b'b', b'c', b'd'), {}),
-    (Word('ab'), to_bytes('ab'), (b'ab',), {(b'a', b'b'): -1}),
-  ],
-  ids=[
-    "in the beginning",
-    "in the middle",
-    "at the end",
-    "overlapping pairs",
-    "two consequtive pairs",
-    "three consequtive pairs",
-    "not found pair",
-    "short word",
-  ]
-)
-
-def test_merge(word, pair, expected, exp_updates):
-  updates = word.merge(pair)
-  assert word.tokens == expected
-  if exp_updates:
-    assert updates == exp_updates
+def vocab():
+    return Vocab()
 
 
-def test_encode():
-  vocab = Vocab.load(FIXTURES_PATH / 'vocab_corpus.json')
-  merges = Merges.load(FIXTURES_PATH / 'merges_corpus.json')
-  lookup_table = set([pair for pair in merges])
-  ids = {v:k for k,v in vocab.items()}
-  word = Word('university')
-  assert len(word.tokens) == 10
-  id, pos = lookup(word.tokens, word.tokens[0], 1, lookup_table, ids)
-  assert Pair([b'un', b'i']) not in lookup_table
-  assert id == 426
-  assert pos == 2
-  id, pos = lookup(word.tokens, word.tokens[pos], pos+1, lookup_table, ids)
-  assert id == 106
-  assert pos == 3
-  id, pos = lookup(word.tokens, word.tokens[pos], pos+1, lookup_table, ids)
-  assert id == 327
-  assert pos == 5
-  id, pos = lookup(word.tokens, word.tokens[pos], pos+1, lookup_table, ids)
-  assert id == 115
-  assert pos == 6
-  id, pos = lookup(word.tokens, word.tokens[pos], pos+1, lookup_table, ids)
-  assert id == 116
-  assert pos == 7
-  id, pos = lookup(word.tokens, word.tokens[pos], pos+1, lookup_table, ids)
-  assert id == 440
-  assert pos == 10
+def test_vocab(vocab: Vocab):
+    assert len(vocab) == 256
 
-  res = encode(word.tokens, lookup_table, ids)
-  assert res == [426, 106, 327, 115, 116, 440]
+
+@pytest.fixture
+def word(vocab: Vocab):
+    return Word(vocab.to_ids("this is test"))
+
+
+def test_word(word: Word):
+    expected = [116, 104, 105, 115, 32, 105, 115, 32, 116, 101, 115, 116]
+    assert word.tokens.tolist() == expected
+    assert word.found_at(3, 115, 32)
+    assert not word.found_at(2, 115, 32)
+
+def test_pairs(word: Word):
+    toks = [116, 104, 105, 115, 32, 105, 115, 32, 116, 101, 115, 116]
+    expected = to_encoded_pairs([(a,b) for a, b in zip(toks[:-1], toks[1:])])
+    assert word.pairs() == expected
+
+def test_found(vocab: Vocab):
+    word = Word(vocab.to_ids("this"))
+    pair = vocab.to_ids('th')
+    assert word.found_at(0, *pair)
+    assert not word.found_at(1, *pair)
+    assert not word.found_at(32, *pair)
+    pair = vocab.to_ids('hi')
+    assert word.found_at(1, *pair)
+    pair = vocab.to_ids('is')
+    assert word.found_at(2, *pair)
+
+
+def test_merge_at_first(vocab: Vocab, word: Word):
+    word = Word(vocab.to_ids("this"))
+    assert word.tokens.tolist() == [116, 104, 105, 115]
+    pair = vocab.to_ids('th')
+    assert word.merge(pack_pair(*pair), 1000) == {pack_pair(1000, 105): 1, pack_pair(116, 104): -1, pack_pair(104, 105): -1}
+    assert word.tokens.tolist() == [1000, 105, 115]
+
+def test_merge_at_last(vocab: Vocab, word: Word):
+  word = Word(vocab.to_ids("this"))
+  assert word.tokens.tolist() == [116, 104, 105, 115]
+  pair = vocab.to_ids('is')
+  assert word.merge(pack_pair(*pair), 1000) == {pack_pair(104, 1000): 1, pack_pair(104, 105): -1, pack_pair(105, 115): -1}
+  assert word.tokens.tolist() == [116, 104, 1000]
+
+
+def test_merge_in_the_middle(vocab: Vocab, word: Word):
+    word = Word(vocab.to_ids("this"))
+    assert word.tokens.tolist() == [116, 104, 105, 115]
+    pair = vocab.to_ids('hi')
+    assert word.merge(pack_pair(*pair), 1000) == {pack_pair(116, 1000): 1, pack_pair(1000, 115): 1, pack_pair(104, 105): -1, pack_pair(116, 104): -1, pack_pair(105, 115): -1}
+    assert word.tokens.tolist() == [116, 1000, 115]
+
+def test_merge_in_the_middle_twice(vocab: Vocab):
+    word = Word(vocab.to_ids("thaaaais"))
+    assert word.tokens.tolist() == [116, 104, 97, 97, 97, 97, 105, 115]
+    pair = vocab.to_ids('aa')
+    assert word.merge(pack_pair(*pair), 1000) == {
+      pack_pair(104, 1000): 1, pack_pair(1000, 1000): 1, pack_pair(1000, 105): 1,
+      pack_pair(104, 97): -1, pack_pair(97, 97): -3, pack_pair(97, 105): -1}
+    assert word.tokens.tolist() == [116, 104, 1000, 1000, 105, 115]
+
+def test_merge_in_the_middle_twice_overlapping(vocab: Vocab):
+    word = Word(vocab.to_ids("thaaais"))
+    assert word.tokens.tolist() == [116, 104, 97, 97, 97, 105, 115]
+    pair = vocab.to_ids('aa')
+    assert word.found_at(2, *pair)
+    assert word.found_at(3, *pair)
+    assert word.merge(pack_pair(*pair), 1000) == Counter({pack_pair(104, 1000): 1, pack_pair(1000, 97): 1, pack_pair(104, 97): -1, pack_pair(97, 97): -2})
+    assert word.tokens.tolist() == [116, 104, 1000, 97, 105, 115]

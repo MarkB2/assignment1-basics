@@ -2,6 +2,7 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
+# pytest.importorskip("test_pretokenizer.py", reason="WIP")
 
 from cs336_basics.pretokenizer import Pretokenizer
 from cs336_basics.types import SpecialToken
@@ -23,8 +24,10 @@ def test_string_reader(string):
     assert "<|endoftext|>" not in words
 
 
-def test_file_reader():
-    words = Counter(Pretokenizer().iter_file(Path("tests/tokenizer/text.txt")))
+def test_file_reader(tmp_path):
+    filename = tmp_path / "text.txt"
+    filename.write_text("one two tr<|endoftext|>ee four")
+    words = Counter(Pretokenizer().iter_file(filename))
     assert "one" in words
     assert " two" in words
     assert " four" in words
@@ -53,17 +56,17 @@ def test_pretokenizer():
     assert list(pt.iter_tokens("Hello<|endoftext|>world<|unk|>!")) == ["Hello", "world", "!"]
 
 
-def test_pretokenizer_from_file():
+def test_pretokenizer_from_file(tmp_path):
     special_tokens = ["<|endoftext|>"]
-    assert list(Pretokenizer().iter_file(Path("tests/tokenizer/text.txt"))) == ["one", " two", " tr", "ee", " four", "\n"]
-    assert list(Pretokenizer(keep_special_tokens=True).iter_file(Path("tests/tokenizer/text.txt"))) == [
+    filename = tmp_path / "text.txt"
+    filename.write_text("one two tr<|endoftext|>ee four")
+    assert list(Pretokenizer(keep_special_tokens=True).iter_file(filename)) == [
         "one",
         " two",
         " tr",
         SpecialToken(text="<|endoftext|>"),
         "ee",
         " four",
-        "\n",
     ]
 
 

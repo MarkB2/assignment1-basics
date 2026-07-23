@@ -1,36 +1,43 @@
 import heapq
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import final
 
-from typing_extensions import final
-from .types import Pair, PairCount
+from .types import PackedPair, PackedPairCount, TieBreak
 
-@dataclass
+
+@dataclass(slots=True)
 class MaxNode:
     count: int
-    pair: Pair
+    pair: PackedPair
+    lex_greater: TieBreak = field(compare=False)
 
     def __lt__(self, other: "MaxNode"):
         if self.count != other.count:
             return self.count > other.count
-        return self.pair > other.pair
+        return self.lex_greater(self.pair, other.pair)
+
 
 @final
-class PairMaxHeap:
-    def __init__(self, pair_counts: PairCount) -> None:
+class MaxHeap:
+    def __init__(self, pair_counts: PackedPairCount, tie_break: TieBreak) -> None:
         self.pair_counts = pair_counts
-        self.heap = [MaxNode(count, pair) for pair, count in pair_counts.items()]
+        self._tie_break = tie_break
+        self.heap = [self.make_node(count, pair) for pair, count in pair_counts.items()]
         heapq.heapify(self.heap)
 
-    def update(self, deltas: PairCount) -> None:
+    def make_node(self, count: int, pair: PackedPair):
+        return MaxNode(count, pair, self._tie_break)
+
+    def update(self, deltas: PackedPairCount) -> None:
         for pair, delta in deltas.items():
             self.pair_counts[pair] += delta
             freq = self.pair_counts[pair]
             if freq > 0:
-                heapq.heappush(self.heap, MaxNode(freq, pair))
+                heapq.heappush(self.heap, self.make_node(freq, pair))
             else:
                 del self.pair_counts[pair]
 
-    def get_best(self) -> Pair | None:
+    def get_best(self) -> PackedPair | None:
         while self.heap:
             best = heapq.heappop(self.heap)
             if best.count == self.pair_counts.get(best.pair):
