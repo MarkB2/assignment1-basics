@@ -1,5 +1,5 @@
 import pytest
-pytest.importorskip("test_trainer.py", reason="WIP")
+# pytest.importorskip("test_trainer.py", reason="WIP")
 import regex as re
 from cs336_basics.trainer import BPETrainer, train, train_and_save
 
@@ -17,4 +17,4 @@ def setup():
 #   assert merges == setup()
 
 def test_train_and_save():
-  train_and_save('tests/fixtures/corpus.en', 'tests/tokenizer/vocab.txt', 'tests/tokenizer/merges.txt', 500)
+  train_and_save('tests/fixtures/corpus.en', 'tests/tokenizer/vocab.txt', 500)

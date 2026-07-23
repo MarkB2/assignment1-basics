@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from unittest.mock import patch
 
@@ -12,15 +14,17 @@ def pair_helper(pairs: list[list[bytes]], vocab: Vocab) -> list[PackedPair]:
                 _ = vocab.add(b)
     return [pack_pair(*[vocab.id_for(b) for b in pair]) for pair in pairs]
 
-CASES = [
-    ([[b'c', b'b'], [b'b', b'b']], True),
-    ([[b'b', b'b'], [b'b', b'c']], False),
-    ([[b'ca', b'b'], [b'c', b'b']], True),
-    ([[b'b', b'b'], [b'b', b'bc']], False),
-]
-CASE_IDS = ["greater first elm", "greater second elm", "first elm longer", "second elm longer",]
 
-@pytest.mark.parametrize("pairs, expected", CASES, ids=CASE_IDS)
+@pytest.mark.parametrize(
+    "pairs, expected",
+    [
+        ([[b'c', b'b'], [b'b', b'b']], True),
+        ([[b'b', b'b'], [b'b', b'c']], False),
+        ([[b'ca', b'b'], [b'c', b'b']], True),
+        ([[b'b', b'b'], [b'b', b'bc']], False),
+    ],
+    ids = ["greater first elm", "greater second elm", "first elm longer", "second elm longer",]
+)
 def test_tie_breaker(pairs: list[list[bytes]], expected: bool) -> None:
     vocab = Vocab()
     tie_breaker = TieBreaker(vocab)
@@ -28,7 +32,14 @@ def test_tie_breaker(pairs: list[list[bytes]], expected: bool) -> None:
     assert tie_breaker.lex_greater(a, b) == expected
     assert tie_breaker.greater(a, b) == expected
 
-@pytest.mark.parametrize("pairs, expected", CASES, ids=CASE_IDS)
+@pytest.mark.parametrize(
+    "pairs, expected",
+    [
+        ([[b'c', b'b'], [b'b', b'b']], True),
+        ([[b'b', b'b'], [b'c', b'b']], False),
+    ],
+    ids = ["greater first elm", "greater second elm",]
+)
 def test_tie_breaker_cache(pairs: list[list[bytes]], expected: bool) -> None:
     vocab = Vocab()
     tie_breaker = TieBreaker(vocab)
@@ -43,14 +54,24 @@ def test_tie_breaker_cache(pairs: list[list[bytes]], expected: bool) -> None:
     assert result1 == expected == result2 == (not result3)
 
 
-
-def test_load_save():
+@pytest.mark.parametrize(
+    "pairs",
+    [
+        ([[b'c', b'b'], [b'b', b'b']]),
+    ],
+)
+def test_load_save(pairs: list[list[bytes]], tmp_path: Path):
     vocab = Vocab()
-    vocab.save("test_vocab.json")
-    loaded = Vocab.load("test_vocab.json")
+    packed = pair_helper(pairs, vocab)
+    for pair in packed:
+        _ = vocab.add_merge(pair)
+    filename = tmp_path / "test_vocab.json"
+    vocab.save(filename)
+    loaded = Vocab.load(filename)
     assert vocab._forward == loaded._forward  # pyright: ignore [reportPrivateUsage]
-    assert vocab._merges == loaded._merges  # pyright: ignore [reportPrivateUsage]
+    assert vocab._merges == loaded._merges == packed  # pyright: ignore [reportPrivateUsage]
     assert vocab._next_id == loaded._next_id  # pyright: ignore [reportPrivateUsage]
+
 
 
 # @pytest.fixture

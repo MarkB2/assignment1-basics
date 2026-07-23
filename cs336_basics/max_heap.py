@@ -1,9 +1,9 @@
-from collections.abc import Callable
 import heapq
 from dataclasses import dataclass, field
 from typing import final
 
 from .types import PackedPair, PackedPairCount, TieBreak
+
 
 @dataclass(slots=True)
 class MaxNode:

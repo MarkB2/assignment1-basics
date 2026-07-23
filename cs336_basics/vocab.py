@@ -1,9 +1,11 @@
 import json
 from collections.abc import Iterable
 from pathlib import Path
-from typing import NamedTuple, Self, cast, final
+from typing import NamedTuple, Self, final
 
-from .types import PackedPair, TieBreak, unpack_pair, pack_pair
+from cs336_basics.max_heap import MaxHeap
+
+from .types import PackedPair, PackedPairCount, TieBreak, pack_pair, unpack_pair
 
 
 class EncodedVocab(NamedTuple):
@@ -94,10 +96,7 @@ class Vocab:
         vocab = cls.__new__(cls)
         vocab._forward = {int(k): encode_latin(v) for k, v in source.vocab.items()}
         vocab._reverse = {v: k for k, v in vocab._forward.items()}
-        vocab._merges = [
-            pack_pair(tuple(vocab.id_for(encode_latin(pair[0])), vocab.id_for(encode_latin(pair[0]))))
-            for pair in source.merges
-        ]
+        vocab._merges = [pack_pair(*[vocab.id_for(encode_latin(a)) for a in pair]) for pair in source.merges]
         vocab._next_id = max(vocab._forward) + 1
         return vocab
 
@@ -112,6 +111,7 @@ class VocabCodec:
 
     def decode(self, ids: Iterable[int]) -> bytes:
         return b"".join([self._vocab.bytes_for(b) for b in ids])
+
 
 class TieBrakeCache:
     def __init__(self) -> None:
@@ -152,3 +152,7 @@ class TieBreaker:
 
     def lex_greater(self, first: PackedPair, second: PackedPair) -> bool:
         return self.tuple_for(unpack_pair(first)) > self.tuple_for(unpack_pair(second))
+
+
+def make_heap(pair_counts: PackedPairCount, vocab: Vocab) -> MaxHeap:
+    return MaxHeap(pair_counts, TieBreaker(vocab).greater)

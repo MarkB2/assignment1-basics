@@ -114,3 +114,24 @@ from cs336_basics.types import PackedPair
 
 a: PackedPair = 12
 isinstance(a, PackedPair)
+
+# %%
+from collections.abc import Callable
+from timeit import timeit
+import numpy as np
+
+def check_it(c: Callable, number=1000):
+  print(f"{timeit(c, number=number)/number*1e6:.2f} um/call")
+
+
+toks = np.arange(10)  # grab a realistic one from a debugger/print
+def numpy_version(toks):
+    return toks.astype(dtype='uint32')[:-1] << 16 | toks[1:]
+
+def python_loop_version(toks):
+    return [(int(a)<<16)|int(b) for a,b in zip(toks, toks[1:])]
+for n in [3, 5, 10, 15, 20, 40]:
+    toks = np.arange(n)
+    print(n)
+    check_it(lambda: numpy_version(toks), number=100_000)
+    check_it(lambda: python_loop_version(toks), number=100_000)

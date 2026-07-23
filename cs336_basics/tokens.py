@@ -1,25 +1,23 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import final
 
 import numpy as np
-from typing import final
-from collections.abc import Iterable
-from .types import PackedPair, PackedPairCount, pack_pair, unpack_pair
 
+from .types import PackedPair, PackedPairCount, pack_pair, unpack_pair
 
 
 # Converts string to tuple of bytes
 def to_bytes(string: str, offset: int = 0) -> np.ndarray:
-    return np.array([b + offset for b in bytes(string, encoding="utf-8")], dtype='uint16')
+    return np.array([b + offset for b in bytes(string, encoding="utf-8")], dtype="uint16")
 
 
 @final
-class NewWord:
-    # Word contains id tokens and frequency of its appearance,
-    # tokens offsetted by number special_tokens
-    __slots__ = ('tokens', 'freq')
+class Word:
+    __slots__ = ("tokens", "freq")
 
     def __init__(self, tokens: Iterable[int], freq: int = 1) -> None:
-        self.tokens: np.ndarray = np.array(tokens, dtype='uint16')
+        self.tokens: np.ndarray = np.array(tokens, dtype="uint16")
         self.freq = freq
 
     # Checks if pair found at pos
@@ -28,31 +26,28 @@ class NewWord:
             return True
         return False
 
-    def pairs(self) -> np.ndarray:
-        return self.tokens.astype(dtype='uint32')[:-1] << 16 | self.tokens[1:]
-
+    def pairs(self) -> list[PackedPair]:
+        return [(int(a) << 16) | int(b) for a, b in zip(self.tokens, self.tokens[1:])]  # pyright: ignore[reportAny]
 
     # Merge the pair if found
     def merge(self, pair: PackedPair, ab: int) -> PackedPairCount:
         a, b = unpack_pair(pair)
-        i, j, updates = 0, 0, PackedPairCount()
-        new_tokens = np.empty_like(self.tokens)
+        i, updates = 0, PackedPairCount()
+        new_tokens: list[int] = []
         while i < self.tokens.size:
             if self.found_at(i, a, b):
-                if j > 0: #new_tokens:
+                if new_tokens:
                     prev = int(self.tokens[i - 1])
                     updates[pack_pair(prev, a)] -= self.freq
                     updates[pack_pair(prev, ab)] += self.freq
                 updates[pair] -= self.freq
-                new_tokens[j] = ab
-                j += 1
+                new_tokens.append(ab)
 
                 while self.found_at(i + 2, a, b):
                     updates[pack_pair(ab, ab)] += self.freq
                     updates[pack_pair(a, b)] -= self.freq
                     updates[pack_pair(b, a)] -= self.freq
-                    new_tokens[j] = ab
-                    j += 1
+                    new_tokens.append(ab)
                     i += 2
 
                 look = i + 2
@@ -62,9 +57,8 @@ class NewWord:
                     updates[pack_pair(ab, nxt)] += self.freq
                 i += 2
             else:
-                new_tokens[j] = self.tokens[i]
-                j += 1
+                new_tokens.append(int(self.tokens[i]))
                 i += 1
 
-        self.tokens = new_tokens[:j].copy()
+        self.tokens = np.array(new_tokens, dtype="uint16")
         return updates

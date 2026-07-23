@@ -5,11 +5,11 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import cast
 
-from .max_id_heap import PairMaxHeap
+from .max_heap import MaxHeap
 from .pretokenizer import Pretokenizer
-from .new_tokens import NewWord
-from .new_vocab import Vocab
-from .types import IdPair, IdPairCount, IdPairLoc, Pretoken #, Vocab
+from .tokens import Word
+from .vocab import Vocab, make_heap
+from .types import Pretoken, PackedPairCount, PackedPairLoc, unpack_pair
 # import tracemalloc
 
 
@@ -25,32 +25,33 @@ class BPETrainer:
         self.vocab_size: int = vocab_size
         self.vocab: Vocab = Vocab(special_tokens)
 
-    def build(self) -> tuple[list[NewWord], IdPairCount, IdPairLoc]:
+    def build(self) -> tuple[list[Word], PackedPairCount, PackedPairLoc]:
         corpus: Counter[Pretoken] = Counter(self.iterator)
-        words = [NewWord(self.vocab.to_ids(cast(str, word)), freq) for word, freq in corpus.items()]
+        words = [Word(self.vocab.to_ids(cast(str, word)), freq) for word, freq in corpus.items()]
         pair_counts, pair_locs = self.get_counts(words)
         return words, pair_counts, pair_locs
 
     @classmethod
-    def get_counts(cls, words: list[NewWord]) -> tuple[IdPairCount, IdPairLoc]:
-        pair_counts, pair_locs = IdPairCount(), IdPairLoc()
+    def get_counts(cls, words: list[Word]) -> tuple[PackedPairCount, PackedPairLoc]:
+        pair_counts, pair_locs = PackedPairCount(), PackedPairLoc()
         for loc, word in enumerate(words):
             for pair in word.pairs():
-                pair_counts[pair] += word.freq
-                pair_locs[pair].add(loc)
+                p = int(pair)
+                pair_counts[p] += word.freq
+                pair_locs[p].add(loc)
         return pair_counts, pair_locs
 
     def merge(self) -> Vocab:
         words, pair_counts, pair_locs = self.build()
         _ = gc.collect()
-        heap, vocab = PairMaxHeap(pair_counts), self.vocab
+        heap, vocab = make_heap(pair_counts, self.vocab), self.vocab
         pair = heap.get_best()
         i = len(vocab)
         #
         # tracemalloc.start()
         #
         while pair and i < self.vocab_size:
-            global_updates = IdPairCount()
+            global_updates = PackedPairCount()
             merged_id = vocab.add_merge(pair)
             for loc in list(pair_locs[pair]):
                 updates = words[loc].merge(pair, merged_id)
@@ -87,7 +88,7 @@ def train(
 ) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
     iterator = Pretokenizer(special_tokens=special_tokens).iter_file(input_path)
     vocab = BPETrainer(iterator, vocab_size, special_tokens).merge()
-    return vocab._forward, [tuple([vocab.bytes_for(b) for b in pair]) for pair in vocab.merges()]  # pyright ignore
+    return vocab._forward, [tuple([vocab.bytes_for(b) for b in unpack_pair(pair)]) for pair in vocab.merges()]  # pyright ignore
 
 
 def train_and_save(
