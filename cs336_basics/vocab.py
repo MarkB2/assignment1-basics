@@ -4,23 +4,8 @@ from pathlib import Path
 from typing import NamedTuple, Self, final
 
 from .max_heap import MaxHeap
+from .types import PackedPair, PackedPairCount, TieBreak, pack_pair, unpack_pair, BytesVocab, StringVocab
 
-from .types import PackedPair, PackedPairCount, TieBreak, pack_pair, unpack_pair
-
-
-class EncodedVocab(NamedTuple):
-    vocab: dict[str, str]
-    merges: list[list[str]]
-
-
-def save(path: Path | str, vocab: EncodedVocab) -> None:
-    with open(path, "w") as f:
-        json.dump(vocab, f, indent=4)
-
-
-def load(path: Path | str) -> EncodedVocab:
-    with open(path) as f:
-        return EncodedVocab(*json.load(f))  # pyright: ignore[reportAny]
 
 
 def decode_latin(b: bytes) -> str:
@@ -78,27 +63,39 @@ class Vocab:
     def __len__(self) -> int:
         return len(self._forward)
 
-    def save(self, path: Path | str) -> None:
-        save(
-            path,
-            EncodedVocab(
-                {str(k): decode_latin(v) for k, v in self._forward.items()},
-                [[decode_latin(self.bytes_for(b)) for b in unpack_pair(pair)] for pair in self._merges],
-            ),
-        )
 
-    @classmethod
-    def load(cls, path: Path | str) -> Self:
-        return cls.from_dict(load(path))  # pyright: ignore
+def vocab_to_bytes_vocab(vocab: Vocab) -> BytesVocab:
+    return BytesVocab(
+        vocab._forward,  # pyright: ignore[reportPrivateUsage]
+        [tuple([vocab.bytes_for(b) for b in unpack_pair(pair)]) for pair in vocab._merges],  # pyright: ignore[reportPrivateUsage, reportArgumentType]
+    )
 
-    @classmethod
-    def from_dict(cls, source: EncodedVocab) -> Self:
-        vocab = cls.__new__(cls)
-        vocab._forward = {int(k): encode_latin(v) for k, v in source.vocab.items()}
-        vocab._reverse = {v: k for k, v in vocab._forward.items()}
-        vocab._merges = [pack_pair(*[vocab.id_for(encode_latin(a)) for a in pair]) for pair in source.merges]
-        vocab._next_id = max(vocab._forward) + 1
-        return vocab
+
+def vocab_to_string_vocab(vocab: Vocab) -> StringVocab:
+    bytes_vocab = vocab_to_bytes_vocab(vocab)
+    return StringVocab(
+        {str(k): decode_latin(v) for k, v in bytes_vocab.vocab.items()},
+        [[decode_latin(b) for b in pair] for pair in bytes_vocab.merges],
+    )
+
+
+def string_vocab_to_vocab(source: StringVocab) -> Vocab:
+    vocab = Vocab.__new__(Vocab)
+    vocab._forward = {int(k): encode_latin(v) for k, v in source.vocab.items()}
+    vocab._reverse = {v: k for k, v in vocab._forward.items()}
+    vocab._merges = [pack_pair(*[vocab.id_for(encode_latin(a)) for a in pair]) for pair in source.merges]
+    vocab._next_id = max(vocab._forward) + 1
+    return vocab
+
+
+def save_vocab(path: Path | str, vocab: Vocab) -> None:
+    with open(path, "w") as f:
+        json.dump(vocab_to_string_vocab(vocab), f, indent=4)
+
+
+def load_vocab(path: Path | str) -> Vocab:
+    with open(path) as f:
+        return string_vocab_to_vocab(StringVocab(*json.load(f)))  # pyright: ignore[reportAny]
 
 
 @final

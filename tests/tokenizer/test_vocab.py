@@ -3,9 +3,10 @@ from pathlib import Path
 import pytest
 from unittest.mock import patch
 
-from cs336_basics.vocab import EncodedVocab, Vocab, TieBreaker
+from cs336_basics.vocab import Vocab, TieBreaker, load_vocab, save_vocab, vocab_to_bytes_vocab
 from cs336_basics.types import IdPair, Pair, PackedPair, pack_pair, unpack_pair
 from .helpers import to_encoded_pairs
+from ..common import FIXTURES_PATH
 
 def pair_helper(pairs: list[list[bytes]], vocab: Vocab) -> list[PackedPair]:
     for pair in pairs:
@@ -66,11 +67,17 @@ def test_load_save(pairs: list[list[bytes]], tmp_path: Path):
     for pair in packed:
         _ = vocab.add_merge(pair)
     filename = tmp_path / "test_vocab.json"
-    vocab.save(filename)
-    loaded = Vocab.load(filename)
+    save_vocab(filename, vocab)
+    loaded = load_vocab(filename)
     assert vocab._forward == loaded._forward  # pyright: ignore [reportPrivateUsage]
     assert vocab._merges == loaded._merges == packed  # pyright: ignore [reportPrivateUsage]
     assert vocab._next_id == loaded._next_id  # pyright: ignore [reportPrivateUsage]
+
+def test_vocab_to_bytes_vocab(tmp_path):
+    vocab = Vocab()
+    encoded = vocab_to_bytes_vocab(vocab)
+    assert encoded
+
 
 
 

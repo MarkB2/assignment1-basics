@@ -8,7 +8,7 @@ from typing import cast
 from .max_heap import MaxHeap
 from .pretokenizer import Pretokenizer
 from .tokens import Word
-from .vocab import Vocab, make_heap
+from .vocab import Vocab, make_heap, save_vocab, vocab_to_bytes_vocab
 from .types import Pretoken, PackedPairCount, PackedPairLoc, unpack_pair
 # import tracemalloc
 
@@ -88,8 +88,7 @@ def train(
 ) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
     iterator = Pretokenizer(special_tokens=special_tokens).iter_file(input_path)
     vocab = BPETrainer(iterator, vocab_size, special_tokens).merge()
-    return vocab._forward, [tuple([vocab.bytes_for(b) for b in unpack_pair(pair)]) for pair in vocab.merges()]  # pyright ignore
-
+    return vocab_to_bytes_vocab(vocab)
 
 def train_and_save(
     input_path: str | Path,
@@ -101,4 +100,4 @@ def train_and_save(
 ) -> None:
     iterator = Pretokenizer(special_tokens=special_tokens).iter_file(input_path, max_chunk_size, num_workers)
     vocab = BPETrainer(iterator, vocab_size, special_tokens).merge()
-    vocab.save(vocab_path)
+    save_vocab(vocab_path, vocab)

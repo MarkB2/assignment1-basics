@@ -36,3 +36,13 @@ class SpecialToken:
 
 
 Pretoken = SpecialToken | str
+
+
+class BytesVocab(NamedTuple):
+    vocab: dict[int, bytes]
+    merges: list[tuple[bytes, bytes]]
+
+
+class StringVocab(NamedTuple):
+    vocab: dict[str, str]
+    merges: list[list[str]]
