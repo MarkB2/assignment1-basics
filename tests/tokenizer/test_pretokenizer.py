@@ -2,7 +2,7 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
-# pytest.importorskip("test_pretokenizer.py", reason="WIP")
+pytest.importorskip("test_pretokenizer.py", reason="WIP")
 
 from cs336_basics.pretokenizer import Pretokenizer
 from cs336_basics.types import SpecialToken

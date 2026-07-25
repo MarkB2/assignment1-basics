@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import NamedTuple, Self, final
 
-from cs336_basics.max_heap import MaxHeap
+from .max_heap import MaxHeap
 
 from .types import PackedPair, PackedPairCount, TieBreak, pack_pair, unpack_pair
 

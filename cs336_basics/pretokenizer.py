@@ -1,15 +1,11 @@
-from abc import ABC, abstractmethod
-from collections import Counter, defaultdict
 from collections.abc import Iterator
-from dataclasses import dataclass, field
 from multiprocessing import Pool
 from pathlib import Path
 from typing import NamedTuple
 
 import regex as re
 
-from .tokens import Word, to_bytes
-from .types import PairCount, PairLoc, Pretoken, SpecialToken
+from .types import Pretoken, SpecialToken
 
 GPT4_PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
