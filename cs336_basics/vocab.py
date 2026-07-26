@@ -4,8 +4,7 @@ from pathlib import Path
 from typing import NamedTuple, Self, final
 
 from .max_heap import MaxHeap
-from .types import PackedPair, PackedPairCount, TieBreak, pack_pair, unpack_pair, BytesVocab, StringVocab
-
+from .types import BytesVocab, PackedPair, PackedPairCount, StringVocab, TieBreak, pack_pair, unpack_pair
 
 
 def decode_latin(b: bytes) -> str:
@@ -79,13 +78,20 @@ def vocab_to_string_vocab(vocab: Vocab) -> StringVocab:
     )
 
 
-def string_vocab_to_vocab(source: StringVocab) -> Vocab:
+def bytes_vocab_to_vocab(source: BytesVocab) -> Vocab:
     vocab = Vocab.__new__(Vocab)
-    vocab._forward = {int(k): encode_latin(v) for k, v in source.vocab.items()}
+    vocab._forward = source.vocab.copy()
     vocab._reverse = {v: k for k, v in vocab._forward.items()}
-    vocab._merges = [pack_pair(*[vocab.id_for(encode_latin(a)) for a in pair]) for pair in source.merges]
+    vocab._merges = [pack_pair(*[vocab.id_for(a) for a in pair]) for pair in source.merges]
     vocab._next_id = max(vocab._forward) + 1
     return vocab
+
+
+def string_vocab_to_bytes_vocab(source: StringVocab) -> BytesVocab:
+    return BytesVocab(
+        {int(k): encode_latin(v) for k, v in source.vocab.items()},
+        [tuple([encode_latin(a) for a in pair]) for pair in source.merges],  # pyrignt: ignore[reportArgumentType]
+    )
 
 
 def save_vocab(path: Path | str, vocab: Vocab) -> None:
@@ -95,7 +101,9 @@ def save_vocab(path: Path | str, vocab: Vocab) -> None:
 
 def load_vocab(path: Path | str) -> Vocab:
     with open(path) as f:
-        return string_vocab_to_vocab(StringVocab(*json.load(f)))  # pyright: ignore[reportAny]
+        return bytes_vocab_to_vocab(
+            string_vocab_to_bytes_vocab(StringVocab(*json.load(f)))  # pyright: ignore[reportAny]
+        )
 
 
 @final

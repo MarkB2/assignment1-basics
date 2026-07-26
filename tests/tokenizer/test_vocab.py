@@ -1,12 +1,14 @@
 from pathlib import Path
-
-import pytest
 from unittest.mock import patch
 
-from cs336_basics.vocab import Vocab, TieBreaker, load_vocab, save_vocab, vocab_to_bytes_vocab
-from cs336_basics.types import IdPair, Pair, PackedPair, pack_pair, unpack_pair
-from .helpers import to_encoded_pairs
+import pytest
+
+from cs336_basics.types import IdPair, PackedPair, Pair, pack_pair, unpack_pair
+from cs336_basics.vocab import TieBreaker, Vocab, load_vocab, save_vocab, vocab_to_bytes_vocab
+
 from ..common import FIXTURES_PATH
+from .helpers import to_encoded_pairs
+
 
 def pair_helper(pairs: list[list[bytes]], vocab: Vocab) -> list[PackedPair]:
     for pair in pairs:
@@ -19,12 +21,17 @@ def pair_helper(pairs: list[list[bytes]], vocab: Vocab) -> list[PackedPair]:
 @pytest.mark.parametrize(
     "pairs, expected",
     [
-        ([[b'c', b'b'], [b'b', b'b']], True),
-        ([[b'b', b'b'], [b'b', b'c']], False),
-        ([[b'ca', b'b'], [b'c', b'b']], True),
-        ([[b'b', b'b'], [b'b', b'bc']], False),
+        ([[b"c", b"b"], [b"b", b"b"]], True),
+        ([[b"b", b"b"], [b"b", b"c"]], False),
+        ([[b"ca", b"b"], [b"c", b"b"]], True),
+        ([[b"b", b"b"], [b"b", b"bc"]], False),
     ],
-    ids = ["greater first elm", "greater second elm", "first elm longer", "second elm longer",]
+    ids=[
+        "greater first elm",
+        "greater second elm",
+        "first elm longer",
+        "second elm longer",
+    ],
 )
 def test_tie_breaker(pairs: list[list[bytes]], expected: bool) -> None:
     vocab = Vocab()
@@ -33,13 +40,17 @@ def test_tie_breaker(pairs: list[list[bytes]], expected: bool) -> None:
     assert tie_breaker.lex_greater(a, b) == expected
     assert tie_breaker.greater(a, b) == expected
 
+
 @pytest.mark.parametrize(
     "pairs, expected",
     [
-        ([[b'c', b'b'], [b'b', b'b']], True),
-        ([[b'b', b'b'], [b'c', b'b']], False),
+        ([[b"c", b"b"], [b"b", b"b"]], True),
+        ([[b"b", b"b"], [b"c", b"b"]], False),
     ],
-    ids = ["greater first elm", "greater second elm",]
+    ids=[
+        "greater first elm",
+        "greater second elm",
+    ],
 )
 def test_tie_breaker_cache(pairs: list[list[bytes]], expected: bool) -> None:
     vocab = Vocab()
@@ -47,18 +58,18 @@ def test_tie_breaker_cache(pairs: list[list[bytes]], expected: bool) -> None:
     a, b = pair_helper(pairs, vocab)
     with patch.object(tie_breaker, "lex_greater", wraps=tie_breaker.lex_greater) as spy:
         result1 = tie_breaker.greater(a, b)
-        assert spy.call_count == 1 # cache miss
+        assert spy.call_count == 1  # cache miss
         result2 = tie_breaker.greater(a, b)
-        assert spy.call_count == 1 # cache hit
+        assert spy.call_count == 1  # cache hit
         result3 = tie_breaker.greater(b, a)
-        assert spy.call_count == 1 # cache hit
+        assert spy.call_count == 1  # cache hit
     assert result1 == expected == result2 == (not result3)
 
 
 @pytest.mark.parametrize(
     "pairs",
     [
-        ([[b'c', b'b'], [b'b', b'b']]),
+        ([[b"c", b"b"], [b"b", b"b"]]),
     ],
 )
 def test_load_save(pairs: list[list[bytes]], tmp_path: Path):
@@ -73,12 +84,11 @@ def test_load_save(pairs: list[list[bytes]], tmp_path: Path):
     assert vocab._merges == loaded._merges == packed  # pyright: ignore [reportPrivateUsage]
     assert vocab._next_id == loaded._next_id  # pyright: ignore [reportPrivateUsage]
 
+
 def test_vocab_to_bytes_vocab(tmp_path):
     vocab = Vocab()
     encoded = vocab_to_bytes_vocab(vocab)
     assert encoded
-
-
 
 
 # @pytest.fixture
