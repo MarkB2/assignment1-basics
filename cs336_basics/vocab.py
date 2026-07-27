@@ -1,9 +1,11 @@
 import json
 from collections.abc import Iterable
 from pathlib import Path
+from tkinter import Pack
 from typing import NamedTuple, Self, final
 
 from .max_heap import MaxHeap
+from .tokens import Word
 from .types import BytesVocab, PackedPair, PackedPairCount, StringVocab, TieBreak, pack_pair, unpack_pair
 
 
