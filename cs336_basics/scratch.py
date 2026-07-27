@@ -135,3 +135,13 @@ for n in [3, 5, 10, 15, 20, 40]:
     print(n)
     check_it(lambda: numpy_version(toks), number=100_000)
     check_it(lambda: python_loop_version(toks), number=100_000)
+
+# %%
+import numpy as np
+word = np.frombuffer(b'revolution', dtype="uint8")
+print(word)
+
+def merge(tokens: list[int], pos: int, id: int) -> list[int]:
+    return tokens[:pos] + [id] + tokens[pos+2:]
+
+merge(word.tolist(), 4, 120)

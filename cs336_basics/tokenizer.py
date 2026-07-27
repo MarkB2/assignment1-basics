@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Self, final
 
@@ -37,7 +38,8 @@ class Tokenizer:
         a, b = [self.vocab.bytes_for(x) for x in unpack_pair(best)]
         return pos, self.vocab.id_for(a + b)
 
-    def encode(self, word: Word) -> list[int]:
+    def encode(self, text: str) -> list[int]:
+        word = Word(self.vocab.to_ids(text))
         new_tokens: list[int] = word.tokens.tolist()
         while True:
             pos, replacement = self.best_pair(new_tokens)
@@ -46,20 +48,10 @@ class Tokenizer:
             new_tokens = new_tokens[:pos] + [replacement] + new_tokens[pos + 2 :]
         return new_tokens
 
-    # def _encode(self, word:Word) -> list[int]:
-    #   ids:list[int] = []
-    #   pos, tokens = 0, word.tokens
-    #   while pos < len(tokens):
-    #     prev = tokens[pos]
-    #     id, pos = self._lookup(tokens, prev, pos+1)
-    #     ids.append(id)
-    #   return ids
 
-    # def encode(self, text: str) -> list[int]:
-    #   return self._encode(Word(text))
+    def encode_iterable(self, texts: Iterable[str]) -> Iterator[int]:
+        for text in texts:
+            yield from self.encode(text)
 
-    # def encode_iterable(self, texts: Iterable[str]) -> Iterator[int]:
-    #   ...
-
-    # def decode(self, tokens: list[int]) -> str:
-    #   return b"".join(self.vocab[id] for id in tokens).decode("utf-8", errors='replace')
+    def decode(self, tokens: list[int]) -> str:
+      return b"".join(self.vocab.bytes_for(id) for id in tokens).decode("utf-8", errors='replace')

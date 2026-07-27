@@ -57,7 +57,18 @@ def test_best_pair(file_tokenizer: Tokenizer) -> None:
     assert replacement == 267
 
 def test_encode(file_tokenizer: Tokenizer) -> None:
-    word = word_helper(file_tokenizer.vocab, "collaboration")
-    assert bytes_helper(file_tokenizer.vocab, word.tokens.tolist()) == [b'c', b'o', b'l', b'l', b'a', b'b', b'o', b'r', b'a', b't', b'i', b'o', b'n']
-    tokens = file_tokenizer.encode(word)
+    text = "collaboration"
+    tokens = file_tokenizer.encode(text)
     assert bytes_helper(file_tokenizer.vocab, tokens) == [b'c', b'ol', b'l', b'a', b'b', b'or', b'ation']
+
+def test_encode_iterable(file_tokenizer: Tokenizer) -> None:
+    texts = ["collaboration", " revolution"]
+    tokens = list(file_tokenizer.encode_iterable(texts))
+    assert bytes_helper(file_tokenizer.vocab, tokens) == [
+        b'c', b'ol', b'l', b'a', b'b', b'or', b'ation', b' re', b'v', b'ol', b'ut', b'ion'
+    ]
+
+def test_decode(file_tokenizer: Tokenizer) -> None:
+    text = "collaboration and revolution"
+    tokens = file_tokenizer.encode(text)
+    assert file_tokenizer.decode(tokens) == text
