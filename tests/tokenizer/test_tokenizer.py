@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 
 from ..common import FIXTURES_PATH
-from cs336_basics.types import pack_pair, unpack_pair
+from cs336_basics.types import SpecialToken, pack_pair, unpack_pair
 from cs336_basics.tokens import Word
 from cs336_basics.vocab import Vocab, string_vocab_to_bytes_vocab, bytes_vocab_to_vocab, StringVocab
 from cs336_basics.tokenizer import Tokenizer
@@ -57,9 +57,9 @@ def test_best_pair(file_tokenizer: Tokenizer) -> None:
     assert replacement == 267
 
 def test_encode(file_tokenizer: Tokenizer) -> None:
-    text = "collaboration"
+    text = "collaboration<|endofphrase|>"
     tokens = file_tokenizer.encode(text)
-    assert bytes_helper(file_tokenizer.vocab, tokens) == [b'c', b'ol', b'l', b'a', b'b', b'or', b'ation']
+    assert bytes_helper(file_tokenizer.vocab, tokens) == [b'c', b'ol', b'l', b'a', b'b', b'or', b'ation', b'<|endofphrase|>']
 
 def test_encode_iterable(file_tokenizer: Tokenizer) -> None:
     texts = ["collaboration", " revolution"]

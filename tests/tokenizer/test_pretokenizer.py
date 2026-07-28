@@ -2,7 +2,6 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
-pytest.importorskip("test_pretokenizer.py", reason="WIP")
 
 from cs336_basics.pretokenizer import Pretokenizer
 from cs336_basics.types import SpecialToken
@@ -37,11 +36,6 @@ def test_file_reader(tmp_path):
     assert "<|endoftext|>" not in words
 
 
-# def test_reader2():
-#   words, _, _ = Reader(Path('tests/tokenizer/text.txt'), Pattern()).build()
-#   assert len(words) == 6 # including \n
-
-
 def test_pretokenizer():
     special_tokens = ["<|endoftext|>", "<|padding|>", "<|unk|>"]
     pt = Pretokenizer(special_tokens=special_tokens, keep_special_tokens=True)
@@ -72,5 +66,22 @@ def test_pretokenizer_from_file(tmp_path):
 
 def test_pretokenizer_from_file_multi():
     special_tokens = ["<|endoftext|>"]
-    out = list(Pretokenizer().iter_file(Path("tests/fixtures/tinystories_sample_5M.txt"), max_chunk_size=10_000, num_workers=2))
+    out = list(
+        Pretokenizer().iter_file(Path("tests/fixtures/tinystories_sample_5M.txt"), max_chunk_size=10_000, num_workers=2)
+    )
     assert len(out) > 1_000_000
+
+
+def test_keep_special_tokens():
+    pt = Pretokenizer(keep_special_tokens=True)
+    assert list(pt.iter_tokens("this is<|endoftext|>one")) == ["this", " is", SpecialToken(text="<|endoftext|>"), "one"]
+
+
+def test_keep_unknown_special_tokens():
+    pt = Pretokenizer(special_tokens=["<|endofphrase|>"], keep_special_tokens=True)
+    assert list(pt.iter_tokens("this is<|endofphrase|>one")) == [
+        "this",
+        " is",
+        SpecialToken(text="<|endofphrase|>"),
+        "one",
+    ]

@@ -145,3 +145,7 @@ def merge(tokens: list[int], pos: int, id: int) -> list[int]:
     return tokens[:pos] + [id] + tokens[pos+2:]
 
 merge(word.tolist(), 4, 120)
+
+# %%
+f = [[1,2,3], [5], [6,7,8,9]]
+
