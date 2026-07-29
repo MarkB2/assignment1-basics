@@ -147,5 +147,6 @@ def merge(tokens: list[int], pos: int, id: int) -> list[int]:
 merge(word.tolist(), 4, 120)
 
 # %%
-f = [[1,2,3], [5], [6,7,8,9]]
+from transformer import Linear
 
+Linear(5,5).state_dict()
