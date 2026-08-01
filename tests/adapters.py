@@ -12,7 +12,7 @@ from torch import Tensor
 
 from cs336_basics.tokenizer import Tokenizer
 from cs336_basics.trainer import train
-from cs336_basics.transformer import Embedding, Linear, MultiHeadSelfAttention, MultiHeadSelfAttentionWithRoPE, RMSNorm, RotaryPositionalEmbedding, SwiGLU, softmax, scaled_dot_product_attention
+from cs336_basics.transformer import Embedding, Linear, MultiHeadSelfAttention, MultiHeadSelfAttentionWithRoPE, RMSNorm, RotaryPositionalEmbedding, SwiGLU, TransformerBlock, softmax, scaled_dot_product_attention
 
 def run_linear(
     d_in: int,
@@ -35,7 +35,7 @@ def run_linear(
 
     linear = Linear(d_in, d_out)
     linear.load_state_dict({"weights": weights})
-    return linear.forward(in_features)
+    return linear(in_features)
 
 
 def run_embedding(
@@ -59,7 +59,7 @@ def run_embedding(
 
     embeddings = Embedding(vocab_size, d_model)
     embeddings.load_state_dict({"weights": weights})
-    return embeddings.forward(token_ids)
+    return embeddings(token_ids)
 
 
 def run_swiglu(
@@ -93,7 +93,7 @@ def run_swiglu(
     # swiglu.w3.weight.data = w3_weight
     ffn = SwiGLU(d_model, d_ff)
     ffn.load_state_dict({"W1": w1_weight, "W2": w2_weight, "W3": w3_weight})
-    return ffn.forward(in_features)
+    return ffn(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -150,7 +150,7 @@ def run_multihead_self_attention(
     """
     mha = MultiHeadSelfAttention(d_model, num_heads)
     mha.load_state_dict({"W": torch.cat([q_proj_weight, k_proj_weight, v_proj_weight]), "Wo": o_proj_weight})
-    return mha.forward(in_features)
+    return mha(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -191,7 +191,7 @@ def run_multihead_self_attention_with_rope(
         """
     mha = MultiHeadSelfAttentionWithRoPE(d_model, num_heads, max_seq_len, theta)
     mha.load_state_dict({"W": torch.cat([q_proj_weight, k_proj_weight, v_proj_weight]), "Wo": o_proj_weight})
-    return mha.forward(in_features, token_positions)
+    return mha(in_features, token_positions)
 
 
 def run_rope(
@@ -214,7 +214,7 @@ def run_rope(
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
     rope = RotaryPositionalEmbedding(theta, d_k, max_seq_len)
-    return rope.forward(in_query_or_key, token_positions)
+    return rope (in_query_or_key, token_positions)
 
 
 def run_transformer_block(
@@ -287,7 +287,14 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    trf = TransformerBlock(d_model, num_heads, d_ff, max_seq_len, theta)
+    trf.load_state_dict({
+        'rms_norm_in.weight':ln1.weight,
+        'self_attn.W': torch.cat([attn.q_proj.weight, ttn.k_proj.weight, ttn.v_proj.weight]),
+        'self_attn.Wo':attn.output_proj.weight, 'rms_norm_out.weight':ln2.weight, 'ffn.W1':ffn.w1.weight, 'ffn.W2':ffn.w2.weight, 'ffn.W3':ffn.w3.weight})
+    return trf(in_features)
+
+
 
 
 def run_transformer_lm(
