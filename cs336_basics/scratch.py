@@ -147,6 +147,8 @@ def merge(tokens: list[int], pos: int, id: int) -> list[int]:
 merge(word.tolist(), 4, 120)
 
 # %%
-from transformer import Linear
+import torch
 
-Linear(5,5).state_dict()
+a = torch.randn(2,3)
+x,y = a.shape
+x+y

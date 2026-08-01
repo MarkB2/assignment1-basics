@@ -1,4 +1,6 @@
+from collections.abc import Iterable
 from math import sqrt
+from enum import IntEnum
 from typing import override
 
 import einx
@@ -7,11 +9,33 @@ import torch.nn as nn
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
+class Init(IntEnum):
+    LINEAR = 1
+    EMBEDDING = 2
 
 def linear_init(d_in: int, d_out: int) -> dict[str, float]:
     std = sqrt(2 / (d_in + d_out))
     return {"std": std, "a": -3 * std, "b": 3 * std}
 
+def t_std(tensor: Tensor) -> float:
+    d_out, d_in = tensor.shape
+    return sqrt(2 / (d_in + d_out))
+
+def init_it(tensor: Tensor, std: float | None = None) -> None:
+    if std is None:
+        std = t_std(tensor)
+    _ = nn.init.trunc_normal_(tensor, std, a=-3*std, b=3*std)
+
+def t_init(tensor: Tensor | tuple[Tensor, ...], cls: Init) -> None:
+    if isinstance(tensor, tuple):
+        for t in tensor:
+           t_init(t, cls)
+    else:
+        match cls:
+            case Init.LINEAR:
+                init_it(tensor)
+            case Init.EMBEDDING:
+                init_it(tensor, 1.0)
 
 class Linear(nn.Module):
     def __init__(
@@ -19,7 +43,7 @@ class Linear(nn.Module):
     ) -> None:
         super().__init__()
         self.weights: nn.Parameter = nn.Parameter(torch.empty((out_features, in_features), device=device, dtype=dtype))
-        nn.init.trunc_normal_(self.weights, **linear_init(in_features, out_features))  # pyright: ignore
+        t_init(self.weights, Init.LINEAR)
 
     @override
     def forward(self, x: Tensor) -> Tensor:
@@ -38,7 +62,7 @@ class Embedding(nn.Module):
         self.weights: nn.Parameter = nn.Parameter(
             torch.empty((num_embeddings, embedding_dim), device=device, dtype=dtype)
         )
-        nn.init.trunc_normal_(self.weights, a=-3, b=3)  # pyright: ignore
+        t_init(self.weights, Init.EMBEDDING)
 
     @override
     def forward(self, x: torch.LongTensor) -> Tensor:
@@ -74,10 +98,7 @@ class SwiGLU(nn.Module):
         self.W1: nn.Parameter = nn.Parameter(torch.empty((d_ff, d_model), device=device, dtype=dtype))
         self.W2: nn.Parameter = nn.Parameter(torch.empty((d_model, d_ff), device=device, dtype=dtype))
         self.W3: nn.Parameter = nn.Parameter(torch.empty((d_ff, d_model), device=device, dtype=dtype))
-        init_params = linear_init(d_model, d_ff)
-        nn.init.trunc_normal_(self.W1, **init_params)  # pyright: ignore
-        nn.init.trunc_normal_(self.W2, **init_params)  # pyright: ignore
-        nn.init.trunc_normal_(self.W3, **init_params)  # pyright: ignore
+        t_init((self.W1, self.W2, self.W3), Init.LINEAR)
 
     @override
     def forward(self, x: Tensor) -> Tensor:
@@ -136,12 +157,10 @@ class MultiHeadSelfAttention(nn.Module):
         self, d_model: int, num_heads: int, device: torch.device | None = None, dtype: torch.dtype | None = None
     ):
         super().__init__()
-        self.d_model = d_model
-        self.num_heads = num_heads
+        self.head_dim = d_model // num_heads
         self.W = nn.Parameter(torch.empty(3 * d_model, d_model, device=device, dtype=dtype))
         self.Wo = nn.Parameter(torch.empty(d_model, d_model, device=device, dtype=dtype))
-        nn.init.trunc_normal_(self.W, **linear_init(3 * d_model, d_model))  # pyright: ignore
-        nn.init.trunc_normal_(self.Wo, **linear_init(d_model, d_model))  # pyright: ignore
+        t_init((self.W, self.Wo), Init.LINEAR)
 
     @override
     def forward(self, x: Tensor) -> Tensor:
@@ -149,15 +168,14 @@ class MultiHeadSelfAttention(nn.Module):
 
         Q, K, V = einx.dot("(b d_out) d_in, ... seq d_in -> b ... seq d_out", self.W, x, b=3)
 
-        head_dim = self.d_model // self.num_heads
         causal_mask = torch.tril(torch.ones(seq_len, seq_len, dtype=torch.bool, device=x.device))
         mhd = torch.cat(
             [
                 scaled_dot_product_attention(qh, kh, vh, mask=causal_mask)
                 for qh, kh, vh in zip(
-                    torch.split(Q, dim=-1, split_size_or_sections=head_dim),
-                    torch.split(K, dim=-1, split_size_or_sections=head_dim),
-                    torch.split(V, dim=-1, split_size_or_sections=head_dim),
+                    torch.split(Q, dim=-1, split_size_or_sections=self.head_dim),
+                    torch.split(K, dim=-1, split_size_or_sections=self.head_dim),
+                    torch.split(V, dim=-1, split_size_or_sections=self.head_dim),
                 )
             ],
             dim=-1,
@@ -170,13 +188,11 @@ class MultiHeadSelfAttentionWithRoPE(nn.Module):
     def __init__(
         self, d_model: int, num_heads: int, max_seq_len: int, theta: float, device: torch.device | None = None, dtype: torch.dtype | None = None):
         super().__init__()
-        self.d_model = d_model
-        self.num_heads = num_heads
-        self.rope = RotaryPositionalEmbedding(theta, d_model, max_seq_len, device=device)
+        self.head_dim = d_model // num_heads
+        self.rope = RotaryPositionalEmbedding(theta, self.head_dim, max_seq_len, device=device)
         self.W = nn.Parameter(torch.empty(3 * d_model, d_model, device=device, dtype=dtype))
         self.Wo = nn.Parameter(torch.empty(d_model, d_model, device=device, dtype=dtype))
-        nn.init.trunc_normal_(self.W, **linear_init(3 * d_model, d_model))  # pyright: ignore
-        nn.init.trunc_normal_(self.Wo, **linear_init(d_model, d_model))  # pyright: ignore
+        t_init((self.W, self.Wo), Init.LINEAR)
 
     def apply_rope(self, qh: Tensor, kh: Tensor, token_pos: Tensor) -> tuple[Tensor, Tensor]:
         # assert qh.shape == token_pos.shape, f"{qh.shape} != {token_pos.shape}"
