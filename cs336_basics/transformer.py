@@ -106,8 +106,8 @@ class RotaryPositionalEmbedding(nn.Module):
     @override
     def forward(self, x: Tensor, token_pos: Tensor) -> Tensor:
         in_dtype = x.dtype
-        cos_cached = self.cos_cached[token_pos].to(in_dtype) # pyright: ignore
-        sin_cached = self.sin_cached[token_pos].to(in_dtype) # pyright: ignore
+        cos_cached = self.cos_cached[token_pos].to(in_dtype)  # pyright: ignore
+        sin_cached = self.sin_cached[token_pos].to(in_dtype)  # pyright: ignore
         x1, x2 = einx.id("... (c d) -> d ... c", x, d=2)
         return einx.id(
             "... (c d), ... (c e) -> ... (c (d+e))",
@@ -115,28 +115,91 @@ class RotaryPositionalEmbedding(nn.Module):
             x1 * sin_cached + x2 * cos_cached,
             d=1,
             e=1,
-        ) # pyright: ignore
+        )  # pyright: ignore
+
 
 def softmax(x: Tensor, dim: int) -> Tensor:
     y = torch.exp(x - x.max(dim, keepdim=True)[0])
     return y / torch.sum(y, dim=dim, keepdim=True)
 
+
 def scaled_dot_product_attention(Q: Tensor, K: Tensor, V: Tensor, mask: Tensor | None = None) -> Tensor:
     d_k = Q.shape[-1]
     QK = d_k ** (-0.5) * einx.dot("... q d_k, ... k d_k -> ... q k", Q, K)
     if mask is not None:
-        QK = einx.where("... q k, ... q k, ", mask, QK, -torch.inf) # pyright: ignore
+        QK = einx.where("q k, ... q k, ", mask, QK, -torch.inf)  # pyright: ignore
     return einx.dot("... q k, ... k d_k -> ... q d_k", softmax(QK, -1), V)
 
+
 class MultiHeadSelfAttention(nn.Module):
-    def __init__(self, d_model: int, num_heads: int, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def __init__(
+        self, d_model: int, num_heads: int, device: torch.device | None = None, dtype: torch.dtype | None = None
+    ):
         super().__init__()
         self.d_model = d_model
         self.num_heads = num_heads
         self.W = nn.Parameter(torch.empty(3 * d_model, d_model, device=device, dtype=dtype))
         self.Wo = nn.Parameter(torch.empty(d_model, d_model, device=device, dtype=dtype))
-        nn.init.trunc_normal_(self.W, **linear_init(3 * d_model, d_model)) # pyright: ignore
-        nn.init.trunc_normal_(self.Wo, **linear_init(d_model, d_model)) # pyright: ignore
+        nn.init.trunc_normal_(self.W, **linear_init(3 * d_model, d_model))  # pyright: ignore
+        nn.init.trunc_normal_(self.Wo, **linear_init(d_model, d_model))  # pyright: ignore
 
     @override
     def forward(self, x: Tensor) -> Tensor:
+        seq_len = x.shape[-2]
+
+        Q, K, V = einx.dot("(b d_out) d_in, ... seq d_in -> b ... seq d_out", self.W, x, b=3)
+
+        head_dim = self.d_model // self.num_heads
+        causal_mask = torch.tril(torch.ones(seq_len, seq_len, dtype=torch.bool, device=x.device))
+        mhd = torch.cat(
+            [
+                scaled_dot_product_attention(qh, kh, vh, mask=causal_mask)
+                for qh, kh, vh in zip(
+                    torch.split(Q, dim=-1, split_size_or_sections=head_dim),
+                    torch.split(K, dim=-1, split_size_or_sections=head_dim),
+                    torch.split(V, dim=-1, split_size_or_sections=head_dim),
+                )
+            ],
+            dim=-1,
+        )
+
+        return einx.dot("d_out d_in, ... seq d_in -> ... seq d_out", self.Wo, mhd)
+
+
+class MultiHeadSelfAttentionWithRoPE(nn.Module):
+    def __init__(
+        self, d_model: int, num_heads: int, max_seq_len: int, theta: float, device: torch.device | None = None, dtype: torch.dtype | None = None):
+        super().__init__()
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.rope = RotaryPositionalEmbedding(theta, d_model, max_seq_len, device=device)
+        self.W = nn.Parameter(torch.empty(3 * d_model, d_model, device=device, dtype=dtype))
+        self.Wo = nn.Parameter(torch.empty(d_model, d_model, device=device, dtype=dtype))
+        nn.init.trunc_normal_(self.W, **linear_init(3 * d_model, d_model))  # pyright: ignore
+        nn.init.trunc_normal_(self.Wo, **linear_init(d_model, d_model))  # pyright: ignore
+
+    def apply_rope(self, qh: Tensor, kh: Tensor, token_pos: Tensor) -> tuple[Tensor, Tensor]:
+        # assert qh.shape == token_pos.shape, f"{qh.shape} != {token_pos.shape}"
+        return self.rope.forward(qh, token_pos), self.rope.forward(kh, token_pos)
+
+    @override
+    def forward(self, x: Tensor, token_pos: Tensor) -> Tensor:
+        seq_len = x.shape[-2]
+
+        Q, K, V = einx.dot("(b d_out) d_in, ... seq d_in -> b ... seq d_out", self.W, x, b=3)
+        Qr, Kr = self.apply_rope(Q, K, token_pos)
+        head_dim = self.d_model // self.num_heads
+        causal_mask = torch.tril(torch.ones(seq_len, seq_len, dtype=torch.bool, device=x.device))
+        mhd = torch.cat(
+            [
+                scaled_dot_product_attention(qh, kh, vh, mask=causal_mask)
+                for qh, kh, vh in zip(
+                    torch.split(Qr, dim=-1, split_size_or_sections=head_dim),
+                    torch.split(Kr, dim=-1, split_size_or_sections=head_dim),
+                    torch.split(V, dim=-1, split_size_or_sections=head_dim),
+                )
+            ],
+            dim=-1,
+        )
+
+        return einx.dot("d_out d_in, ... seq d_in -> ... seq d_out", self.Wo, mhd)
