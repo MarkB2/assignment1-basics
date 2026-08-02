@@ -150,7 +150,9 @@ def scaled_dot_product_attention(Q: Tensor, K: Tensor, V: Tensor, mask: Tensor |
     d_k = Q.shape[-1]
     QK = d_k ** (-0.5) * einx.dot("... q d_k, ... k d_k -> ... q k", Q, K)
     if mask is not None:
-        QK = einx.where("q k, ... q k, ", mask, QK, -torch.inf)  # pyright: ignore
+        while mask.dim() < QK.dim():
+            mask = mask.unsqueeze(-3)
+        QK = torch.where(mask, QK, float("-inf"))
     return einx.dot("... q k, ... k d_k -> ... q d_k", softmax(QK, -1), V)
 
 
@@ -173,7 +175,7 @@ class MultiHeadSelfAttention(nn.Module):
 
         Q, K, V = einx.dot("(b d_out) d_in, ... seq d_in -> b ... seq d_out", self.W, x, b=3)
 
-        causal_mask = torch.tril(torch.ones(seq_len, seq_len, dtype=torch.bool, device=x.device))
+        causal_mask = torch.tril(torch.ones(*x.shape[:-2], seq_len, seq_len, dtype=torch.bool, device=x.device))
         mhd = torch.cat(
             [
                 scaled_dot_product_attention(
@@ -210,19 +212,67 @@ class MultiHeadSelfAttentionWithRoPE(MultiHeadSelfAttention):
     def apply_rope(self, head: Tensor, token_pos: Tensor | None = None) -> Tensor:
         return self.rope(head, token_pos)
 
+
 class TransformerBlock(nn.Module):
-    def __init__(self, d_model: int, num_heads: int, d_ff: int, max_seq_len: int, theta: float, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def __init__(
+        self,
+        d_model: int,
+        num_heads: int,
+        d_ff: int,
+        max_seq_len: int,
+        theta: float,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ):
         super().__init__()
-        self.rms_norm_in = nn.RMSNorm(d_model, eps=1e-5, device=device, dtype=dtype)
-        self.self_attn = MultiHeadSelfAttentionWithRoPE(d_model, num_heads, max_seq_len, theta, device=device, dtype=dtype)
-        self.rms_norm_out = nn.RMSNorm(d_model, eps=1e-5, device=device, dtype=dtype)
+        self.rms_norm_in = RMSNorm(d_model, device=device, dtype=dtype)
+        self.self_attn = MultiHeadSelfAttentionWithRoPE(
+            d_model, num_heads, max_seq_len, theta, device=device, dtype=dtype
+        )
+        self.rms_norm_out = RMSNorm(d_model, device=device, dtype=dtype)
         self.ffn = SwiGLU(d_model, d_ff, device, dtype)
 
-    def forward(self, x:Tensor, token_pos: Tensor) -> Tensor:
-        x = self.rms_norm_in(x)
-        x = self.attn(x, token_pos)
-        x = self.rms_norm_out(x)
-        return self.ffn(x)
+    @override
+    def forward(self, x: Tensor, token_pos: Tensor | None = None) -> Tensor:
+        if token_pos is None:
+            token_pos = torch.arange(x.shape[-2], device=x.device)
+        y = self.rms_norm_in(x)
+        x = self.self_attn(y, token_pos) + x
+        y = self.rms_norm_out(x)
+        return self.ffn(y) + x
 
-t = TransformerBlock(16, 4, 32, 30, 10_000)
-t.state_dict().keys()
+
+class TransformerLM(nn.Module):
+    def __init__(
+        self,
+        vocab_size: int,
+        context_length: int,
+        num_layers: int,
+        d_model: int,
+        num_heads: int,
+        d_ff: int,
+        theta: float,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
+    ) -> None:
+        super().__init__()
+        self.embedding = Embedding(vocab_size, d_model, device=device, dtype=dtype)
+        self.blocks = nn.ModuleList([TransformerBlock(d_model, num_heads, d_ff, context_length, theta, device=device, dtype=dtype) for _ in range(num_layers)])
+        self.norm_out = RMSNorm(d_model, device=device, dtype=dtype)
+        self.linear = Linear(d_model, vocab_size, device=device, dtype=dtype)
+
+    @override
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.embedding(x)
+        for block in self.blocks:
+            x = block(x)
+        x = self.norm_out(x)
+        return self.linear(x)
+
+
+def cross_entropy(x: Tensor, targets: Tensor) -> Tensor:
+    x = x - einx.max("... d -> ... 1", x)
+    x = x - torch.log(einx.sum("... d -> ... 1", torch.exp(x)))
+    return -torch.mean(einx.get_at("b [p], b -> b", x, targets))
+
+# cross_entropy(torch.randn(2,3,5))

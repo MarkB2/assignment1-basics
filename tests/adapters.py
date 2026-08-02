@@ -12,7 +12,7 @@ from torch import Tensor
 
 from cs336_basics.tokenizer import Tokenizer
 from cs336_basics.trainer import train
-from cs336_basics.transformer import Embedding, Linear, MultiHeadSelfAttention, MultiHeadSelfAttentionWithRoPE, RMSNorm, RotaryPositionalEmbedding, SwiGLU, TransformerBlock, softmax, scaled_dot_product_attention
+from cs336_basics.transformer import Embedding, Linear, MultiHeadSelfAttention, MultiHeadSelfAttentionWithRoPE, RMSNorm, RotaryPositionalEmbedding, SwiGLU, TransformerBlock, TransformerLM, cross_entropy, softmax, scaled_dot_product_attention
 
 def run_linear(
     d_in: int,
@@ -287,12 +287,17 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    trf = TransformerBlock(d_model, num_heads, d_ff, max_seq_len, theta)
-    trf.load_state_dict({
-        'rms_norm_in.weight':ln1.weight,
-        'self_attn.W': torch.cat([attn.q_proj.weight, ttn.k_proj.weight, ttn.v_proj.weight]),
-        'self_attn.Wo':attn.output_proj.weight, 'rms_norm_out.weight':ln2.weight, 'ffn.W1':ffn.w1.weight, 'ffn.W2':ffn.w2.weight, 'ffn.W3':ffn.w3.weight})
-    return trf(in_features)
+    transformer_block = TransformerBlock(d_model, num_heads, d_ff, max_seq_len, theta)
+    _ = transformer_block.load_state_dict({
+        'self_attn.W': torch.cat([weights['attn.q_proj.weight'], weights['attn.k_proj.weight'], weights['attn.v_proj.weight']]),
+        'self_attn.Wo': weights['attn.output_proj.weight'] ,
+        'rms_norm_in.gains': weights['ln1.weight'],
+        'ffn.W1': weights['ffn.w1.weight'],
+        'ffn.W2': weights['ffn.w2.weight'],
+        'ffn.W3': weights['ffn.w3.weight'],
+        'rms_norm_out.gains': weights['ln2.weight'],
+    })
+    return transformer_block(in_features)
 
 
 
@@ -376,7 +381,27 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    transformer_lm = TransformerLM(vocab_size, context_length, num_layers, d_model, num_heads, d_ff, rope_theta)
+    dict: dict[str, Tensor] = {
+        'embedding.weights': weights["token_embeddings.weight"],
+        'norm_out.gains': weights["ln_final.weight"],
+        'linear.weights': weights["lm_head.weight"],
+    }
+    for i in range(num_layers):
+        dict[f"blocks.{i}.rms_norm_in.gains"] = weights[f"layers.{i}.ln1.weight"]
+        dict[f"blocks.{i}.rms_norm_out.gains"] = weights[f"layers.{i}.ln2.weight"]
+        dict[f"blocks.{i}.self_attn.W"] = torch.cat([
+            weights[f"layers.{i}.attn.q_proj.weight"],
+            weights[f"layers.{i}.attn.k_proj.weight"],
+            weights[f"layers.{i}.attn.v_proj.weight"],
+        ])
+        dict[f"blocks.{i}.self_attn.Wo"] = weights[f"layers.{i}.attn.output_proj.weight"]
+        dict[f"blocks.{i}.ffn.W1"] = weights[f"layers.{i}.ffn.w1.weight"]
+        dict[f"blocks.{i}.ffn.W2"] = weights[f"layers.{i}.ffn.w2.weight"]
+        dict[f"blocks.{i}.ffn.W3"] = weights[f"layers.{i}.ffn.w3.weight"]
+    transformer_lm.load_state_dict(dict)
+    return transformer_lm(in_indices)
+
 
 
 def run_rmsnorm(
@@ -471,7 +496,7 @@ def run_cross_entropy(
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    return cross_entropy(inputs, targets)
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
