@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
+from torch.special import logsumexp
 
 
 class Init(Enum):
@@ -268,11 +269,14 @@ class TransformerLM(nn.Module):
         x = self.norm_out(x)
         return self.linear(x)
 
-
-def cross_entropy(x: Tensor, targets: Tensor) -> Tensor:
+def logsoftmax(x: Tensor, targets: Tensor) -> Tensor:
     x = x - einx.max("... d -> ... 1", x)
     x = x - torch.log(einx.sum("... d -> ... 1", torch.exp(x)))
-    return -torch.mean(einx.get_at("b [p], b -> b", x, targets))
+    return -einx.get_at("... [d], ... -> ...", x, targets)
 
+def cross_entropy(x: Tensor, targets: Tensor) -> Tensor:
+    return torch.mean(logsoftmax(x, targets))
 
-# cross_entropy(torch.randn(2,3,5))
+def perplexity(x: Tensor, targets: Tensor) -> Tensor:
+    return torch.exp(-einx.mean("... seq -> ...", logsoftmax(x, targets)))
+
