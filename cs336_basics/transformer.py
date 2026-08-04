@@ -97,23 +97,17 @@ class SwiGLU(nn.Module):
         dtype: torch.dtype | None = None,
     ) -> None:
         super().__init__()
-        self.W1: nn.Parameter = nn.Parameter(torch.empty((d_ff, d_model), device=device, dtype=dtype))
+        self.W: nn.Parameter = nn.Parameter(torch.empty((2 * d_ff, d_model), device=device, dtype=dtype))
         self.W2: nn.Parameter = nn.Parameter(torch.empty((d_model, d_ff), device=device, dtype=dtype))
-        self.W3: nn.Parameter = nn.Parameter(torch.empty((d_ff, d_model), device=device, dtype=dtype))
-        t_init((self.W1, self.W2, self.W3), Init.LINEAR)
+        t_init((self.W, self.W2), Init.LINEAR)
 
     @override
     def forward(self, x: Tensor) -> Tensor:
-        W1x = einx.dot("d_ff d_model, ... d_model -> ... d_ff", self.W1, x)
+        W1x, W3x = einx.dot("(b d_ff) d_model, ... d_model -> b ... d_ff", self.W, x, b=2)
         return einx.dot(
             "d_model d_ff, ... d_ff -> ... d_model",
             self.W2,
-            einx.multiply(
-                "... d_ff, ... d_ff, ... d_ff -> ... d_ff",
-                W1x,
-                torch.sigmoid(W1x),
-                einx.dot("d_ff d_model, ... d_model -> ... d_ff", self.W3, x),
-            ),
+            einx.multiply("... d_ff, ... d_ff, ... d_ff -> ... d_ff", W1x, torch.sigmoid(W1x), W3x),
         )
 
 
@@ -257,7 +251,12 @@ class TransformerLM(nn.Module):
     ) -> None:
         super().__init__()
         self.embedding = Embedding(vocab_size, d_model, device=device, dtype=dtype)
-        self.blocks = nn.ModuleList([TransformerBlock(d_model, num_heads, d_ff, context_length, theta, device=device, dtype=dtype) for _ in range(num_layers)])
+        self.blocks = nn.ModuleList(
+            [
+                TransformerBlock(d_model, num_heads, d_ff, context_length, theta, device=device, dtype=dtype)
+                for _ in range(num_layers)
+            ]
+        )
         self.norm_out = RMSNorm(d_model, device=device, dtype=dtype)
         self.linear = Linear(d_model, vocab_size, device=device, dtype=dtype)
 
@@ -274,5 +273,6 @@ def cross_entropy(x: Tensor, targets: Tensor) -> Tensor:
     x = x - einx.max("... d -> ... 1", x)
     x = x - torch.log(einx.sum("... d -> ... 1", torch.exp(x)))
     return -torch.mean(einx.get_at("b [p], b -> b", x, targets))
+
 
 # cross_entropy(torch.randn(2,3,5))

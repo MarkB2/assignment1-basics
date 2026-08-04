@@ -92,7 +92,7 @@ def run_swiglu(
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
     ffn = SwiGLU(d_model, d_ff)
-    ffn.load_state_dict({"W1": w1_weight, "W2": w2_weight, "W3": w3_weight})
+    ffn.load_state_dict({"W": torch.cat((w1_weight, w3_weight)), "W2": w2_weight})
     return ffn(in_features)
 
 
