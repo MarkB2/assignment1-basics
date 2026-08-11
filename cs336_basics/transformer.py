@@ -1,5 +1,6 @@
 # %%
 from collections.abc import Iterable
+from dataclasses import MISSING, dataclass
 from enum import Enum
 from math import sqrt
 from typing import override
@@ -279,4 +280,3 @@ def cross_entropy(x: Tensor, targets: Tensor) -> Tensor:
 
 def perplexity(x: Tensor, targets: Tensor) -> Tensor:
     return torch.exp(-einx.mean("... seq -> ...", logsoftmax(x, targets)))
-
