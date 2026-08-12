@@ -1,0 +1,4 @@
+vocab:
+  input: text.txt
+  output: vocab.txt
+  vocab_size: 500

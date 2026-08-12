@@ -1,0 +1,2 @@
+job_type: EVAL
+job_name: ${job_type}_${now:%Y-%m-%d_%H-%M-%S}

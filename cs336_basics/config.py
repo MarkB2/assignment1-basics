@@ -1,12 +1,41 @@
 from dataclasses import dataclass, field
-from typing import Optional
+from enum import Enum
+from typing import Any, Optional
+from pathlib import Path
+
 from omegaconf import MISSING
+
+
+class Stage(str, Enum):
+    VOCAB = "vocab"
+    TOKENIZE = "tokenize"
+    TRAIN = "train"
+    EVAL = "eval"
+
+@dataclass
+class VocabConfig:
+    input_path: str | Path = MISSING
+    vocab_path: str | Path = MISSING
+    # vocab_size: int = 500
+    # special_tokens: list[str] = field(default_factory=list) # =["<|endoftext|>"])
+    # num_workers: int = 4
+    # max_chunk_size: int = 1_000_000
+
+
+@dataclass
+class Config:
+    job_type: Stage = MISSING
+    job_name: str = MISSING
+    parent_name: str = MISSING
+    vocab: Optional[VocabConfig] = None
+    params: Optional[Any] = None
 
 
 @dataclass
 class DeviceParams:
     device: str = MISSING
     dtype: str = MISSING
+
 
 @dataclass
 class ModelParams:
@@ -17,6 +46,7 @@ class ModelParams:
     num_heads: int = MISSING
     d_ff: int = MISSING
     theta: float = MISSING
+
 
 @dataclass
 class OptParams:
@@ -29,6 +59,7 @@ class OptParams:
 @dataclass
 class SourceParams:
     dummy: int = 0
+
 
 @dataclass
 class TrainParams:
