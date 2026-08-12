@@ -6,7 +6,7 @@ from typing import NamedTuple, Self, final
 
 from .max_heap import MaxHeap
 from .tokens import Word
-from .types import BytesVocab, PackedPair, PackedPairCount, StringVocab, TieBreak, pack_pair, unpack_pair
+from .model_types import BytesVocab, PackedPair, PackedPairCount, StringVocab, TieBreak, pack_pair, unpack_pair
 
 
 def decode_latin(b: bytes) -> str:

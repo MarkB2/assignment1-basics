@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from dataclasses import MISSING, dataclass
 from enum import Enum
 from math import sqrt
-from typing import override
+from typing import Self, override
 
 import einx
 import torch
@@ -12,6 +12,7 @@ from jaxtyping import Bool, Float, Int
 from torch import Tensor
 from torch.special import logsumexp
 
+from .config import ModelParams
 
 class Init(Enum):
     LINEAR = 1
@@ -269,6 +270,18 @@ class TransformerLM(nn.Module):
             x = block(x)
         x = self.norm_out(x)
         return self.linear(x)
+
+    @classmethod
+    def from_config(cls, params: ModelParams) -> Self:
+        return cls(
+            vocab_size=params.vocab_size,
+            context_length=params.context_length,
+            num_layers=params.num_layers,
+            d_model=params.d_model,
+            num_heads=params.num_heads,
+            d_ff=params.d_ff,
+            theta=params.theta,
+       )
 
 def logsoftmax(x: Tensor, targets: Tensor) -> Tensor:
     x = x - einx.max("... d -> ... 1", x)

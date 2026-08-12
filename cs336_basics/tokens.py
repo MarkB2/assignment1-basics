@@ -4,7 +4,7 @@ from typing import final
 
 import numpy as np
 
-from .types import PackedPair, PackedPairCount, pack_pair, unpack_pair
+from .model_types import PackedPair, PackedPairCount, pack_pair, unpack_pair
 
 
 # Converts string to tuple of bytes

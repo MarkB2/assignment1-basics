@@ -9,5 +9,8 @@ model:
     num_heads: 4
     d_ff: 128
     theta: 10000
+mode: "training"
+optimizer:
+    lr: 1e-3
 source:
     dummy: 0

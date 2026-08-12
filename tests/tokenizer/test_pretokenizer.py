@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from cs336_basics.pretokenizer import Pretokenizer
-from cs336_basics.types import SpecialToken
+from cs336_basics.model_types import SpecialToken
 
 
 @pytest.fixture

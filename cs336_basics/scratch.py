@@ -110,7 +110,7 @@ a = 6357097
 print(a >> 16, a & 0xFFFF)
 
 # %%
-from cs336_basics.types import PackedPair
+from cs336_basics.model_types import PackedPair
 
 a: PackedPair = 12
 isinstance(a, PackedPair)

@@ -5,7 +5,7 @@ from collections import Counter
 
 from cs336_basics.tokens import Word
 from cs336_basics.vocab import Vocab
-from cs336_basics.types import IdPairCount, PackedPair, pack_pair, unpack_pair
+from cs336_basics.model_types import IdPairCount, PackedPair, pack_pair, unpack_pair
 from .helpers import to_encoded_pairs, from_encoded_pairs
 
 def test_pack_unpack_pair():

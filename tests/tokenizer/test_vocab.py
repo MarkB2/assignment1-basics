@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cs336_basics.types import IdPair, PackedPair, Pair, pack_pair, unpack_pair
+from cs336_basics.model_types import IdPair, PackedPair, Pair, pack_pair, unpack_pair
 from cs336_basics.vocab import TieBreaker, Vocab, load_vocab, save_vocab, vocab_to_bytes_vocab
 
 from ..common import FIXTURES_PATH

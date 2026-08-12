@@ -1,7 +1,7 @@
 import pytest
 
 from cs336_basics.max_heap import MaxHeap, MaxNode
-from cs336_basics.types import PackedPair, PackedPairCount, TieBreak
+from cs336_basics.model_types import PackedPair, PackedPairCount, TieBreak
 
 
 def gt_break(a: PackedPair, b: PackedPair) -> bool:

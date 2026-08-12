@@ -1,4 +1,5 @@
-from cs336_basics.train import ModelParms
+from cs336_basics.train import build_model_params
+from cs336_basics.config import TrainParams
 
 from ..common import FIXTURES_PATH
 from omegaconf import OmegaConf
@@ -10,7 +11,11 @@ def test_omega_config():
     assert cfg
 
 def test_structured_config():
-    schema = OmegaConf.structured(ModelParms)
+    schema = OmegaConf.structured(TrainParams)
     cfg = OmegaConf.load(model_cfg)
     config = OmegaConf.merge(cfg, schema)
     assert config
+
+def test_build_model_params():
+    obj = build_model_params(str(model_cfg), [])
+    assert isinstance(obj, TrainParams)

@@ -2,7 +2,7 @@ import heapq
 from dataclasses import dataclass, field
 from typing import final
 
-from .types import PackedPair, PackedPairCount, TieBreak
+from .model_types import PackedPair, PackedPairCount, TieBreak
 
 
 @dataclass(slots=True)

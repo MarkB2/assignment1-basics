@@ -7,7 +7,7 @@ from typing import Self, final
 from .pretokenizer import Pretokenizer
 
 from .tokens import Word
-from .types import BytesVocab, PackedPair, Pretoken, SpecialToken, pack_pair, unpack_pair
+from .model_types import BytesVocab, PackedPair, Pretoken, SpecialToken, pack_pair, unpack_pair
 from .vocab import Vocab, bytes_vocab_to_vocab, load_vocab
 
 

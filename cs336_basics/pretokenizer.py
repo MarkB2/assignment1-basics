@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 import regex as re
 
-from .types import Pretoken, SpecialToken
+from .model_types import Pretoken, SpecialToken
 
 GPT4_PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 

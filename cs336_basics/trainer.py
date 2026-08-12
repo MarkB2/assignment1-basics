@@ -9,7 +9,7 @@ from .max_heap import MaxHeap
 from .pretokenizer import Pretokenizer
 from .tokens import Word
 from .vocab import Vocab, make_heap, save_vocab, vocab_to_bytes_vocab
-from .types import Pretoken, PackedPairCount, PackedPairLoc, unpack_pair
+from .model_types import Pretoken, PackedPairCount, PackedPairLoc, unpack_pair
 # import tracemalloc
 
 

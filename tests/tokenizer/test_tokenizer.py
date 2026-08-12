@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 
 from ..common import FIXTURES_PATH
-from cs336_basics.types import SpecialToken, pack_pair, unpack_pair
+from cs336_basics.model_types import SpecialToken, pack_pair, unpack_pair
 from cs336_basics.tokens import Word
 from cs336_basics.vocab import Vocab, string_vocab_to_bytes_vocab, bytes_vocab_to_vocab, StringVocab
 from cs336_basics.tokenizer import Tokenizer
