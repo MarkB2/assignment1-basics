@@ -57,3 +57,18 @@ def write_manifest(config: Config) -> None:
 def resolve_parent(current: str) -> str | None:
     """Given a current dir, find its parent one."""
     return Manifest.load(current).parent
+
+def update_manifest(run_dir: Path, **updates) -> None:
+    m = Manifest.load(run_dir)
+    for k, v in updates.items():
+        getattr(m, k).update(v) if isinstance(getattr(m, k), dict) else setattr(m, k, v)
+    m.save(run_dir)
+
+# run_dir = new_run(kind="train", run_id=job_name, parent_run=cfg.train.vocab_run)
+
+# # ... training loop, periodically ...
+# h = save_checkpoint(model, optimizer, step, run_dir / f"step_{step}.pt")
+# update_manifest(run_dir, outputs={f"checkpoint_step_{step}": h})
+
+# # ... at the end ...
+# update_manifest(run_dir, outputs={"final_loss": final_loss})
