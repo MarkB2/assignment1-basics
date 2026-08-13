@@ -1,11 +1,12 @@
-job_type: EVAL
-job_name: ${job_type}_${now:%Y-%m-%d_%H-%M-%S}
-parent_name: None
-
 defaults:
+  - base_config
+  - vocab: base
   - _self_
-  - vocab: small
+
+stage: EVAL
+dir: runs/${stage}_${now:%Y-%m-%d_%H-%M-%S}
+parent: None
 
 hydra:
   run:
-    dir: runs/${job_name}
+    dir: ${dir}

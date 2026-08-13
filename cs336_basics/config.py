@@ -14,19 +14,17 @@ class Stage(str, Enum):
 
 @dataclass
 class VocabConfig:
-    input_path: str | Path = MISSING
-    vocab_path: str | Path = MISSING
-    # vocab_size: int = 500
-    # special_tokens: list[str] = field(default_factory=list) # =["<|endoftext|>"])
-    # num_workers: int = 4
-    # max_chunk_size: int = 1_000_000
+    size: int = MISSING
+    special_tokens: list[str] = field(default_factory=lambda: ["<|endoftext|>"])
+    num_workers: int = 4
+    max_chunk_size: int = 1_000_000
 
 
 @dataclass
 class Config:
-    job_type: Stage = MISSING
-    job_name: str = MISSING
-    parent_name: str = MISSING
+    stage: Stage = MISSING
+    dir: str = MISSING
+    parent: str = MISSING
     vocab: Optional[VocabConfig] = None
     params: Optional[Any] = None
 
