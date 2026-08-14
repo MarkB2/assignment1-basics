@@ -4,8 +4,12 @@ defaults:
   - _self_
 
 stage: EVAL
+# the output manifest directoy
 dir: runs/${stage}_${now:%Y-%m-%d_%H-%M-%S}
+# the input manifest directoy
 parent: None
+source: None
+
 
 hydra:
   run:

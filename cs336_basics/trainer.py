@@ -5,6 +5,8 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import cast
 
+from cs336_basics.config import VocabConfig
+
 from .max_heap import MaxHeap
 from .pretokenizer import Pretokenizer
 from .tokens import Word
@@ -90,14 +92,13 @@ def train(
     vocab = BPETrainer(iterator, vocab_size, special_tokens).merge()
     return vocab_to_bytes_vocab(vocab)
 
-def train_and_save(
-    input_path: str | Path,
-    vocab_path: str | Path,
-    vocab_size: int = 32_000,
-    special_tokens: list[str] = ["<|endoftext|>"],
-    num_workers: int = 4,
-    max_chunk_size: int = 1_000_000,
-) -> None:
+def train_and_save(config: VocabConfig) -> None:
+    input_path = config.input_path
+    vocab_path = config.vocab_path
+    vocab_size = config.vocab_size
+    special_tokens = config.special_tokens
+    num_workers = config.num_workers
+    max_chunk_size = config.max_chunk_size
     iterator = Pretokenizer(special_tokens=special_tokens).iter_file(input_path, max_chunk_size, num_workers)
     vocab = BPETrainer(iterator, vocab_size, special_tokens).merge()
     save_vocab(vocab_path, vocab)

@@ -12,9 +12,16 @@ class Stage(str, Enum):
     TRAIN = "train"
     EVAL = "eval"
 
+# @dataclass
+# class StageConfig:
+#     parent: str
+#     source: str
+
 @dataclass
 class VocabConfig:
-    size: int = MISSING
+    input_path: str
+    vocab_path: str
+    vocab_size: int = MISSING
     special_tokens: list[str] = field(default_factory=lambda: ["<|endoftext|>"])
     num_workers: int = 4
     max_chunk_size: int = 1_000_000
@@ -25,6 +32,7 @@ class Config:
     stage: Stage = MISSING
     dir: str = MISSING
     parent: str = MISSING
+    source: str = MISSING
     vocab: Optional[VocabConfig] = None
     params: Optional[Any] = None
 

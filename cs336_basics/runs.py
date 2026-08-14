@@ -5,6 +5,9 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+import io
+
+from omegaconf import ValidationError
 from cs336_basics.config import Config
 
 DEFAULT_PATH = Path(".")
@@ -21,8 +24,20 @@ def git_dirty() -> bool:
     out = subprocess.check_output(["git", "status", "--porcelain"], text=True)
     return bool(out.strip())
 
-def hash_file(path: Path, n: int = 12) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()[:n]
+def hash_file_read(dir: str, source: str, n: int = 12) -> str | None:
+    path = Path(dir) / source
+    if path.exists():
+        return hashlib.sha256(path.read_bytes()).hexdigest()[:n]
+    return None
+
+def hash_file_write(dir: str, source: str, state_dict, n: int = 12) -> str:
+    buffer = io.BytesIO()
+    torch.save(state_dict, buffer)
+    data = buffer.getvalue()
+    hasher = hashlib.sha256()
+    hasher.update(data)
+    (Path(dir) / source).write_bytes(date)
+    return hasher.hexdigest()[:n]
 
 
 @dataclass
@@ -58,11 +73,23 @@ def resolve_parent(current: str) -> str | None:
     """Given a current dir, find its parent one."""
     return Manifest.load(current).parent
 
-def update_manifest(run_dir: Path, **updates) -> None:
+def update_manifest(run_dir: str, **updates) -> None:
     m = Manifest.load(run_dir)
     for k, v in updates.items():
-        getattr(m, k).update(v) if isinstance(getattr(m, k), dict) else setattr(m, k, v)
-    m.save(run_dir)
+        current = getattr(m, k)
+        if isinstance(current, dict):
+            current.update(v)
+        else:
+            setattr(m, k, v)
+    m.save()
+
+def validate_input(parent: str, source:str) -> None:
+    m = Manifest.load(parent)
+    v = m.inputs.get(source, None)
+    if v:
+        hash = hash_file_read(parent, source)
+        if hash and hash != v:
+            raise ValidationError(f"Input {parent}/{source} hash {hash} does not match expected {v}")
 
 # run_dir = new_run(kind="train", run_id=job_name, parent_run=cfg.train.vocab_run)
 

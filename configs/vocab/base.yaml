@@ -2,4 +2,6 @@ defaults:
   - vocab_schema
   - _self_
 
-size: 500
+vocab_size: 500
+input_path: ${parent}/${source}
+vocab_path: ${dir}/vocab.json
