@@ -1,0 +1,4 @@
+- stage=VOCAB
+- vocab=32k_vocab
+- parent=data
+- source=owt_train.txt

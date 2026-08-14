@@ -1,0 +1,13 @@
+stage: VOCAB
+dir: runs/${stage}_${now:%Y-%m-%d_%H-%M-%S}
+parent: data
+source: owt_train.txt
+vocab:
+  input_path: ${parent}/${source}
+  vocab_path: ${dir}/vocab.json
+  vocab_size: 32000
+  special_tokens:
+  - <|endoftext|>
+  num_workers: 4
+  max_chunk_size: 1000000
+params: null

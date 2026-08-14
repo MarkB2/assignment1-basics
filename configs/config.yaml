@@ -3,10 +3,11 @@ defaults:
   - vocab: base
   - _self_
 
+debug: ""
 stage: EVAL
-# the output manifest directoy
-dir: runs/${stage}_${now:%Y-%m-%d_%H-%M-%S}
-# the input manifest directoy
+# the output manifest directory
+dir: ${debug}runs/${stage}_${now:%Y-%m-%d_%H-%M-%S}
+# the parent manifest directory
 parent: None
 source: None
 

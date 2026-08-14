@@ -30,8 +30,8 @@ def my_app(cfg : DictConfig) -> None:
     if stage == Stage.VOCAB:
         vocab = cast(VocabConfig, config.vocab)
         train_and_save(vocab)
-        hash = hash_file_read(config.dir, vocab.vocab_path)
-        update_manifest(config.dir, **{vocab.vocab_path: hash})
+        hash = hash_file_read("", vocab.vocab_path)
+        update_manifest(config.dir, **{"outputs": {vocab.vocab_path: hash}})
 
 
 

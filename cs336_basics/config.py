@@ -35,6 +35,7 @@ class Config:
     source: str = MISSING
     vocab: Optional[VocabConfig] = None
     params: Optional[Any] = None
+    debug: str | None = ""
 
 
 @dataclass
