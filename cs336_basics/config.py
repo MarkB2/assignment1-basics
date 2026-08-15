@@ -26,16 +26,21 @@ class VocabConfig:
     num_workers: int = 4
     max_chunk_size: int = 1_000_000
 
+@dataclass
+class TokenizerConfig:
+    vocab_path: str
+    input_data: list[str]
+    special_tokens: list[str] | None = None
 
 @dataclass
 class Config:
+    debug: str = MISSING
     stage: Stage = MISSING
     dir: str = MISSING
-    parent: str = MISSING
-    source: str = MISSING
     vocab: Optional[VocabConfig] = None
+    parent: str = MISSING
+    tokenizer: Optional[TokenizerConfig] = None
     params: Optional[Any] = None
-    debug: str | None = ""
 
 
 @dataclass

@@ -2,4 +2,5 @@ defaults:
   - base
   - _self_
 
+input_path: data/owt_train.txt
 vocab_size: 32_000

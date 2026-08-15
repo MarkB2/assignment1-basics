@@ -6,7 +6,7 @@ from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING, DictConfig, OmegaConf
 from pprint import pprint
 
-from cs336_basics.config import Stage, Config, VocabConfig
+from cs336_basics.config import Stage, Config, VocabConfig, TokenizerConfig
 from cs336_basics.runs import write_manifest, validate_input, hash_file_read, update_manifest
 from cs336_basics.trainer import train_and_save
 
@@ -17,7 +17,7 @@ CONFIG_DIR = PROJECT_ROOT / "configs"
 cs = ConfigStore.instance()
 cs.store(name="base_config", node=Config)
 cs.store(name="vocab_schema", group="vocab", node=VocabConfig)
-
+cs.store(name="tokenizer_schema", group="tokenizer", node=TokenizerConfig)
 
 @hydra.main(config_path="../configs", config_name="config", version_base="1.3")
 def my_app(cfg : DictConfig) -> None:
@@ -25,13 +25,13 @@ def my_app(cfg : DictConfig) -> None:
     pprint(config, indent=4)
     write_manifest(config)
     stage = config.stage
-    if stage != Stage.VOCAB:
-        validate_input(config.parent, config.source)
     if stage == Stage.VOCAB:
         vocab = cast(VocabConfig, config.vocab)
         train_and_save(vocab)
-        hash = hash_file_read("", vocab.vocab_path)
-        update_manifest(config.dir, **{"outputs": {vocab.vocab_path: hash}})
+        hash = hash_file_read("", vocab.input_path)
+        update_manifest(config.dir, **{"outputs": {vocab.input_path: hash}})
+    if stage == Stage.TOKENIZE:
+        validate_input(config.parent, config.tokenizer.vocab_path)
 
 
 

@@ -1,7 +1,8 @@
+# Base vocab 500 from data/TinyStoriesV2-GPT4-valid.txt
 defaults:
   - vocab_schema
   - _self_
 
 vocab_size: 500
-input_path: ${parent}/${source}
+input_path: data/TinyStoriesV2-GPT4-valid.txt
 vocab_path: ${dir}/vocab.json
