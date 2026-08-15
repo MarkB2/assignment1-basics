@@ -1,0 +1,4 @@
+_target_: cs336_basics.hydra_intro_copy.Stage
+name: vocab_small
+parent: None
+source: data/TinyStoriesV2-GPT4-train.txt
