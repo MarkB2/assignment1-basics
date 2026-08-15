@@ -1,6 +1,0 @@
-job_type: TRAIN
-job_name: ${job_type}_${now:%Y-%m-%d_%H-%M-%S}
-vocab:
-  input_path: a.a
-  vocab_path: b.b
-parent_name: mark

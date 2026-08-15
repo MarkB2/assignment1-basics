@@ -1,2 +1,0 @@
-experiment: default
-job_name: ${experiment}_${now:%Y-%m-%d_%H-%M-%S}

@@ -1,6 +1,0 @@
-vocab:
-  input: text.txt
-  output: vocab.txt
-  vocab_size: 500
-experiment: default
-job_name: ${experiment}_${now:%Y-%m-%d_%H-%M-%S}
