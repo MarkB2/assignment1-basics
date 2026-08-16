@@ -2,7 +2,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
 import io
@@ -42,30 +42,30 @@ def hash_file_write(dir: str, source: str, state_dict, n: int = 12) -> str:
 
 @dataclass
 class Manifest:
-    dir: str
+    dir: Path
     stage: str
     created_at: str
     git_commit: str | None = None
     git_dirty: bool = False
-    parent: str | None = None
-    inputs: dict[str, str] = field(default_factory=dict)   # name -> hash
-    outputs: dict[str, str] = field(default_factory=dict)  # name -> hash
+    parent: Path | None = None
+    inputs: dict[Path, str] = field(default_factory=dict)   # name -> hash
+    outputs: dict[Path, str] = field(default_factory=dict)  # name -> hash
 
     def save(self) -> None:
-        (Path(self.dir) / "manifest.json").write_text(json.dumps(self.__dict__, indent=2))
+        (self.dir / "manifest.json").write_text(json.dumps(asdict(self), default=str, indent=2))
 
     @classmethod
     def load(cls, source:str) -> "Manifest":
         return cls(**json.loads((Path(source) / "manifest.json").read_text()))
 
 
-def write_manifest(config: Config) -> None:
+def write_manifest(cfg: Config) -> None:
     Manifest(
-        dir=config.dir,
-        stage=config.stage,
+        dir=cfg.dir,
+        stage=cfg.stage.name,
         created_at=datetime.now().isoformat(timespec="seconds"),
         git_commit=git_commit(),
-        parent=config.parent,
+        parent=cfg.stage.parent,
     ).save()
 
 
@@ -83,13 +83,14 @@ def update_manifest(run_dir: str, **updates) -> None:
             setattr(m, k, v)
     m.save()
 
-def validate_input(parent: str, source:str) -> None:
+def validate_input(parent: str, sources:list[str]) -> None:
     m = Manifest.load(parent)
-    v = m.inputs.get(source, None)
+    v = m.inputs.get(sources, None)
     if v:
-        hash = hash_file_read(parent, source)
-        if hash and hash != v:
-            raise ValidationError(f"Input {parent}/{source} hash {hash} does not match expected {v}")
+        for source in v:
+            hash = hash_file_read(parent, source)
+            if hash and hash != v:
+                raise ValidationError(f"Input {parent}/{source} hash {hash} does not match expected {v}")
 
 # run_dir = new_run(kind="train", run_id=job_name, parent_run=cfg.train.vocab_run)
 

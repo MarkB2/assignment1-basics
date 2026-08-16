@@ -1,4 +1,13 @@
-_target_: cs336_basics.hydra_intro_copy.Stage
+_target_: cs336_basics.config.VocabConfig
 name: vocab_small
 parent: None
-source: data/TinyStoriesV2-GPT4-train.txt
+sources:
+    - data/TinyStoriesV2-GPT4-train.txt
+
+input_path: aaa
+vocab_path: bbb
+vocab_size: 500
+special_tokens:
+   - <|endoftext|>
+num_workers: int = 4
+max_chunk_size: int = 1_000_000

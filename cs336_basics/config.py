@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
@@ -6,25 +7,35 @@ from pathlib import Path
 from omegaconf import MISSING
 
 
-class Stage(str, Enum):
-    VOCAB = "vocab"
-    TOKENIZE = "tokenize"
-    TRAIN = "train"
-    EVAL = "eval"
+@dataclass
+class Config:
+    prefix: str = MISSING
+    stage: Any = MISSING
+    dir: Path = MISSING
 
-# @dataclass
-# class StageConfig:
-#     parent: str
-#     source: str
+    def __post_init__(self):
+        self.dir = Path(self.dir)
 
 @dataclass
-class VocabConfig:
-    input_path: str
-    vocab_path: str
+class Stage(ABC):
+    name: str = MISSING
+    parent: str | None = None
+    sources: list[Path] | None = None
+
+    @abstractmethod
+    def run(self): ...
+
+
+@dataclass
+class VocabConfig(Stage):
+    input_path: str = MISSING
+    vocab_path: str = MISSING
     vocab_size: int = MISSING
     special_tokens: list[str] = field(default_factory=lambda: ["<|endoftext|>"])
     num_workers: int = 4
     max_chunk_size: int = 1_000_000
+
+    def run(self): ...
 
 @dataclass
 class TokenizerConfig:
@@ -32,15 +43,6 @@ class TokenizerConfig:
     input_data: list[str]
     special_tokens: list[str] | None = None
 
-@dataclass
-class Config:
-    debug: str = MISSING
-    stage: Stage = MISSING
-    dir: str = MISSING
-    vocab: Optional[VocabConfig] = None
-    parent: str = MISSING
-    tokenizer: Optional[TokenizerConfig] = None
-    params: Optional[Any] = None
 
 
 @dataclass

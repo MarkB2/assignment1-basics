@@ -5,10 +5,7 @@ defaults:
 
 _target_: cs336_basics.hydra_intro_copy.Config
 prefix: debugs # enum [runs, debugs]
-name: ${stage.name}
-parent: ${stage.parent}
-source: ${stage.source}
-dir: ${prefix}/${name}/${now:%Y-%m-%d_%H-%M-%S}
+dir: ${prefix}/${stage.name}/${now:%Y-%m-%d_%H-%M-%S}
 
 hydra:
   run:
