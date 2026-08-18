@@ -1,13 +1,17 @@
 _target_: cs336_basics.config.VocabConfig
 name: vocab_small
-parent: None
-sources:
-    - data/TinyStoriesV2-GPT4-train.txt
+inputs:
+    source:
+        path: data/TinyStoriesV2-GPT4-train.txt
+        # hash: null
+outputs:
+    vocab:
+        path: ${dir}/vocab.json
 
-input_path: aaa
-vocab_path: bbb
+# input_path: ${inputs.source}
+# vocab_path: ${output.source}
 vocab_size: 500
 special_tokens:
    - <|endoftext|>
-num_workers: int = 4
-max_chunk_size: int = 1_000_000
+num_workers: 4
+max_chunk_size: 1000000

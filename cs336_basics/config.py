@@ -1,26 +1,60 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, get_type_hints, get_origin, get_args, Union
 from pathlib import Path
 
 from omegaconf import MISSING
 
 
 @dataclass
-class Config:
+class PathCoercingConfig:
+    def __post_init__(self):
+        hints = get_type_hints(self)
+        for name, typ in hints.items():
+            value = getattr(self, name)
+            if value is None:
+                continue
+
+            origin = get_origin(typ)
+            args = get_args(typ)
+
+            # plain Path or Path | None
+            if typ is Path or (origin is type(int | None) and Path in args):
+                if not isinstance(value, Path):
+                    setattr(self, name, Path(value))
+
+            # dict[str, Path]
+            elif origin is dict and args == (str, Path):
+                setattr(self, name, {
+                    k: (v if isinstance(v, Path) else Path(v))
+                    for k, v in value.items()
+                })
+
+            # list[Path]
+            elif origin is list and args == (Path,):
+                setattr(self, name, [
+                    v if isinstance(v, Path) else Path(v) for v in value
+                ])
+
+@dataclass
+class Config(PathCoercingConfig):
     prefix: str = MISSING
     stage: Any = MISSING
     dir: Path = MISSING
 
-    def __post_init__(self):
-        self.dir = Path(self.dir)
 
 @dataclass
-class Stage(ABC):
+class Stage(ABC, PathCoercingConfig):
     name: str = MISSING
-    parent: str | None = None
-    sources: list[Path] | None = None
+    inputs: dict[str, Path] = MISSING
+    outputs: dict[str, Path] = MISSING
+    parent: Path | None = None
+
+    # def __post_init__(self):
+    #     self.inputs = {k: Path(v) for k, v in self.inputs.items()}
+    #     self.outputs = {k: Path(v) for k, v in self.outputs.items()}
+
 
     @abstractmethod
     def run(self): ...
@@ -28,8 +62,8 @@ class Stage(ABC):
 
 @dataclass
 class VocabConfig(Stage):
-    input_path: str = MISSING
-    vocab_path: str = MISSING
+    # input_path: str = MISSING
+    # vocab_path: str = MISSING
     vocab_size: int = MISSING
     special_tokens: list[str] = field(default_factory=lambda: ["<|endoftext|>"])
     num_workers: int = 4

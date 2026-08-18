@@ -1,4 +1,3 @@
-from __future__ import annotations
 import hashlib
 import json
 import subprocess
@@ -100,3 +99,10 @@ def validate_input(parent: str, sources:list[str]) -> None:
 
 # # ... at the end ...
 # update_manifest(run_dir, outputs={"final_loss": final_loss})
+
+class Runner:
+    def __init__(self, cfg: Config) -> None:
+        self.cfg = cfg
+
+    def run(self) -> None:
+        write_manifest(self.cfg)
