@@ -1,12 +1,11 @@
 _target_: cs336_basics.config.VocabConfig
 name: vocab_small
-inputs:
-    source:
-        path: data/TinyStoriesV2-GPT4-train.txt
-        # hash: null
-outputs:
-    vocab:
-        path: ${dir}/vocab.json
+#     source:
+#         path: data/TinyStoriesV2-GPT4-train.txt
+#         # hash: null
+# outputs:
+#     vocab:
+#         path: ${current_path}/vocab.json
 
 # input_path: ${inputs.source}
 # vocab_path: ${output.source}

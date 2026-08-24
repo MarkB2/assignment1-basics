@@ -3,10 +3,10 @@ defaults:
   - _self_
   - stage: vocab
 
-_target_: cs336_basics.hydra_intro_copy.Config
+_target_: cs336_basics.config.Config
 prefix: debugs # enum [runs, debugs]
-dir: ${prefix}/${stage.name}/${now:%Y-%m-%d_%H-%M-%S}
+current_path: ${prefix}/${stage.name}/${now:%Y-%m-%d_%H-%M-%S}
 
 hydra:
   run:
-    dir: ${dir}
+    dir: ${current_path}

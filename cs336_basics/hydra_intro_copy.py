@@ -7,7 +7,7 @@ from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING, DictConfig, OmegaConf
 from pprint import pprint
 
-from cs336_basics.config import Config, VocabConfig, TokenizerConfig
+# from cs336_basics.config import Config, VocabConfig, TokenizerConfig
 from cs336_basics.runs import Runner
 from cs336_basics.trainer import train_and_save
 
@@ -32,11 +32,11 @@ def my_app(cfg : DictConfig) -> None:
     # config = cast(Configxx, OmegaConf.to_object(cfg))
     # pprint(config, indent=4)
     # print(type(config.stage.inputs[0]))
-    print(type(config))
-    runner = Runner(config)
-    print(type(config.dir))
-    print(config.stage.inputs.source)
-    runner.run()
+    # print(type(config))
+    # runner = Runner(config)
+    # print(type(config.dir))
+    # print(config.stage.inputs.source)
+    # runner.run()
     #     train_and_save(vocab)
     #     hash = hash_file_read("", vocab.input_path)
     #     update_manifest(config.dir, **{"outputs": {vocab.input_path: hash}})

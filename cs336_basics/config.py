@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional, get_type_hints, get_origin, get_args, Union
+from typing import Any, Optional, get_type_hints, get_origin, get_args, Union, override
 from pathlib import Path
 
 from omegaconf import MISSING
@@ -38,37 +38,44 @@ class PathCoercingConfig:
                 ])
 
 @dataclass
-class Config(PathCoercingConfig):
+class Config:
     prefix: str = MISSING
     stage: Any = MISSING
-    dir: Path = MISSING
+    current_path: str = MISSING
+    parent_path: str | None = None
 
 
 @dataclass
 class Stage(ABC, PathCoercingConfig):
     name: str = MISSING
-    inputs: dict[str, Path] = MISSING
-    outputs: dict[str, Path] = MISSING
-    parent: Path | None = None
 
-    # def __post_init__(self):
-    #     self.inputs = {k: Path(v) for k, v in self.inputs.items()}
-    #     self.outputs = {k: Path(v) for k, v in self.outputs.items()}
-
+    @abstractmethod
+    def validate_input(self) -> dict[Path, str]: ...
 
     @abstractmethod
     def run(self): ...
 
+    @abstractmethod
+    def hash_output(self) -> list[Path]: ...
 
 @dataclass
 class VocabConfig(Stage):
-    # input_path: str = MISSING
-    # vocab_path: str = MISSING
+    input_path: str = MISSING
+    vocab_path: str = MISSING
     vocab_size: int = MISSING
     special_tokens: list[str] = field(default_factory=lambda: ["<|endoftext|>"])
     num_workers: int = 4
     max_chunk_size: int = 1_000_000
 
+    @override
+    def validate_input(self) -> dict[Path, str]:
+        return {}
+
+    @override
+    def hash_output(self) -> list[Path]:
+        return []
+
+    @override
     def run(self): ...
 
 @dataclass

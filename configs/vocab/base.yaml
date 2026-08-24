@@ -5,4 +5,4 @@ defaults:
 
 vocab_size: 500
 input_path: data/TinyStoriesV2-GPT4-valid.txt
-vocab_path: ${dir}/vocab.json
+vocab_path: ${current_path}/vocab.json
