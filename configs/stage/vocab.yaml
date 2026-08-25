@@ -1,18 +1,18 @@
 _target_: cs336_basics.stages.VocabStage
-cfg:
-    _target_: cs336_basics.config.VocabConfig
-    name: vocab_small
-    #     source:
-    #         path: 
-    #         # hash: null
-    # outputs:
-    #     vocab:
-    #         path: 
-    
-    input_path: data/TinyStoriesV2-GPT4-train.txt
-    vocab_path: ${current_path}/vocab.json
-    vocab_size: 500
-    special_tokens:
+config:
+  _target_: cs336_basics.config.VocabConfig
+  name: vocab_small
+  #     source:
+  #         path:
+  #         # hash: null
+  # outputs:
+  #     vocab:
+  #         path:
+
+  input_path: data/TinyStoriesV2-GPT4-train.txt
+  vocab_path: ${config.current_path}/vocab.json
+  vocab_size: 500
+  special_tokens:
     - <|endoftext|>
-    num_workers: 4
-    max_chunk_size: 1000000
+  num_workers: 4
+  max_chunk_size: 1000000

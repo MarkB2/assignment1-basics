@@ -1,47 +1,44 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, override
 from dataclasses import dataclass
+from typing import Generic, TypeVar, override
 
 from cs336_basics.config import VocabConfig
 from cs336_basics.trainer import train_and_save
 
-@dataclass
-class InputSpec:
-    path: str
-    validate: bool = True
 
 @dataclass
-class HashSpec:
+class IOSpec:
     path: str
+    need_validate: bool = True
     hash: str | None = None
-    
+
+
 C = TypeVar("C")
 
 
 class Stage(ABC, Generic[C]):
-    def __init__(self, cfg: C) -> None:
-        self.cfg = cfg
-        
+    def __init__(self, config: C) -> None:
+        self.config = config
+
     @abstractmethod
-    def get_input_specs(self) -> list[InputSpec]: ...
+    def get_input_specs(self) -> list[IOSpec]: ...
 
     @abstractmethod
     def run(self): ...
 
     @abstractmethod
-    def record_outputs(self) -> list[str]: ...
+    def get_output_specs(self) -> list[IOSpec]: ...
+
 
 class VocabStage(Stage[VocabConfig]):
-
     @override
-    def get_input_specs(self) -> list[InputSpec]:
-        return [InputSpec(self.cfg.input_path, False)]
+    def get_input_specs(self) -> list[IOSpec]:
+        return [IOSpec(self.config.input_path, False)]
 
-        
     @override
     def run(self):
-        train_and_save(self.cfg)
-        
+        train_and_save(self.config)
+
     @override
-    def record_outputs(self) -> list[str]:
-        return [self.cfg.input_path, self.cfg.vocab_path]
+    def get_output_specs(self) -> list[IOSpec]:
+        return [IOSpec(self.config.input_path, False), IOSpec(self.config.vocab_path)]

@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional, get_type_hints, get_origin, get_args, Union, override
 from pathlib import Path
+from typing import Any, Optional, Union, get_args, get_origin, get_type_hints, override
 
 from omegaconf import MISSING
 
@@ -26,17 +26,11 @@ class PathCoercingConfig:
 
             # dict[str, Path]
             elif origin is dict and args == (str, Path):
-                setattr(self, name, {
-                    k: (v if isinstance(v, Path) else Path(v))
-                    for k, v in value.items()
-                })
+                setattr(self, name, {k: (v if isinstance(v, Path) else Path(v)) for k, v in value.items()})
 
             # list[Path]
             elif origin is list and args == (Path,):
-                setattr(self, name, [
-                    v if isinstance(v, Path) else Path(v) for v in value
-                ])
-
+                setattr(self, name, [v if isinstance(v, Path) else Path(v) for v in value])
 
 
 @dataclass
@@ -47,11 +41,11 @@ class StageConfig:
 @dataclass
 class Config:
     prefix: str = MISSING
-    stage:Any= MISSING
+    stage: str = MISSING
     current_path: str = MISSING
     parent_path: str | None = None
 
-    
+
 @dataclass
 class VocabConfig(StageConfig):
     input_path: str = MISSING
@@ -67,7 +61,6 @@ class TokenizerConfig:
     vocab_path: str
     input_data: list[str]
     special_tokens: list[str] | None = None
-
 
 
 @dataclass

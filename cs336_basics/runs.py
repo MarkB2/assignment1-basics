@@ -9,7 +9,7 @@ from pathlib import Path
 from omegaconf import ValidationError
 
 from cs336_basics.config import Config, PathCoercingConfig
-from cs336_basics.stages import Stage
+from cs336_basics.stages import IOSpec, Stage
 
 
 def git_commit() -> str | None:
@@ -39,8 +39,7 @@ class Manifest:
     git_commit: str | None = None
     git_dirty: bool = False
     parent: str | None = None
-    inputs: dict[str, str] = field(default_factory=dict)  # name -> hash
-    outputs: dict[str, str] = field(default_factory=dict)  # name -> hash
+    hash_dict: dict[str, str | None] = field(default_factory=dict)  # name -> hash
 
     def save(self) -> None:
         (Path(self.dir) / "manifest.json").write_text(json.dumps(asdict(self), default=str, indent=2))
@@ -50,14 +49,14 @@ class Manifest:
         return cls(**json.loads((Path(source) / "manifest.json").read_text()))
 
 
-def write_manifest(cfg: Config, input_hashes: dict[str, str]) -> None:
+def write_manifest(cfg: Config, input_spec: list[IOSpec]) -> None:
     Manifest(
         dir=cfg.current_path,
-        stage=cfg.stage.name,
+        stage=cfg.stage,
         created_at=datetime.now().isoformat(timespec="seconds"),
         git_commit=git_commit(),
         parent=cfg.parent_path,
-        inputs=input_hashes
+        hash_dict={b.path: b.hash for b in input_spec},
     ).save()
 
 
@@ -82,6 +81,7 @@ def get_source_hashes(parent_path: str | None) -> dict[str, str]:
     manifest.inputs.update(manifest.outputs)
     return manifest.inputs
 
+
 def validate_inputs(source_hashes: dict[str, str], inputs: dict[str, bool]) -> dict[str, str]:
     input_hashes = {}
     for input, validate in inputs.items():
@@ -101,23 +101,26 @@ def validate_inputs(source_hashes: dict[str, str], inputs: dict[str, bool]) -> d
 
 
 class Runner:
-    def __init__(self, cfg: Config) -> None:
-        self.cfg = cfg
+    def __init__(self, config: Config, stage: Stage) -> None:
+        self.config: Config = config
+        self.stage: Stage = stage
 
-    # def before(self):
-    #     inputs = self.cfg.stage.get_inputs()
-    #     source_hashes = get_source_hashes(self.cfg.parent_path)
-    #     input_hashes = validate_inputs(source_hashes, inputs)
-    #     write_manifest(self.cfg, input_hashes)
+    def setup(self):
+        inputs = self.stage.get_input_specs()
+        if self.config.parent_path is not None:
+            source_hashes = {}
+        else:
+            source_hashes = get_source_hashes(self.config.parent_path)
+        input_hashes = validate_inputs(source_hashes, inputs)
+        write_manifest(self.cfg, input_hashes)
 
     # def after(self):
     #     outputs = self.cfg.stage.get_outputs()
     #     update_manifest(self.cfg.current_path, outputs)
-        
+
     def run(self) -> None:
         # self.before()
         # self.cfg.stage.run()
         # self.after()
         # cls = Stage(self.cfg,stage)
         ...
-        
