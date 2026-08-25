@@ -6,7 +6,7 @@ from hydra.core.config_store import ConfigStore
 from omegaconf import MISSING, DictConfig, OmegaConf
 from pprint import pprint
 
-from cs336_basics.config import Stage, Config, VocabConfig, TokenizerConfig
+from cs336_basics.config import StageConfig, Config, VocabConfig, TokenizerConfig
 from cs336_basics.runs import write_manifest, validate_input, hash_file_read, update_manifest
 from cs336_basics.trainer import train_and_save
 
@@ -25,12 +25,12 @@ def my_app(cfg : DictConfig) -> None:
     pprint(config, indent=4)
     write_manifest(config)
     stage = config.stage
-    if stage == Stage.VOCAB:
+    if stage == StageConfig.VOCAB:
         vocab = cast(VocabConfig, config.vocab)
         train_and_save(vocab)
         hash = hash_file_read("", vocab.input_path)
         update_manifest(config.dir, **{"outputs": {vocab.input_path: hash}})
-    if stage == Stage.TOKENIZE:
+    if stage == StageConfig.TOKENIZE:
         validate_input(config.parent, config.tokenizer.vocab_path)
 
 

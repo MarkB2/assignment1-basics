@@ -5,7 +5,7 @@ defaults:
 
 _target_: cs336_basics.config.Config
 prefix: debugs # enum [runs, debugs]
-current_path: ${prefix}/${stage.name}/${now:%Y-%m-%d_%H-%M-%S}
+current_path: ${prefix}/${stage.cfg.name}/${now:%Y-%m-%d_%H-%M-%S}
 
 hydra:
   run:

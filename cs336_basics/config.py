@@ -37,29 +37,23 @@ class PathCoercingConfig:
                     v if isinstance(v, Path) else Path(v) for v in value
                 ])
 
+
+
+@dataclass
+class StageConfig:
+    name: str = MISSING
+
+
 @dataclass
 class Config:
     prefix: str = MISSING
-    stage: Any = MISSING
+    stage:Any= MISSING
     current_path: str = MISSING
     parent_path: str | None = None
 
-
+    
 @dataclass
-class Stage(ABC, PathCoercingConfig):
-    name: str = MISSING
-
-    @abstractmethod
-    def validate_input(self) -> dict[Path, str]: ...
-
-    @abstractmethod
-    def run(self): ...
-
-    @abstractmethod
-    def hash_output(self) -> list[Path]: ...
-
-@dataclass
-class VocabConfig(Stage):
+class VocabConfig(StageConfig):
     input_path: str = MISSING
     vocab_path: str = MISSING
     vocab_size: int = MISSING
@@ -67,16 +61,6 @@ class VocabConfig(Stage):
     num_workers: int = 4
     max_chunk_size: int = 1_000_000
 
-    @override
-    def validate_input(self) -> dict[Path, str]:
-        return {}
-
-    @override
-    def hash_output(self) -> list[Path]:
-        return []
-
-    @override
-    def run(self): ...
 
 @dataclass
 class TokenizerConfig:
