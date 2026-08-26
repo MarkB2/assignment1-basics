@@ -1,15 +1,15 @@
+import dataclasses
 import hashlib
-import io
 import json
 import subprocess
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 
 from omegaconf import ValidationError
 
-from cs336_basics.config import Config, PathCoercingConfig
-from cs336_basics.stages import IOSpec, Stage
+from cs336_basics.config import Config
+from cs336_basics.stages import IOSpec, IOSpecList, Stage
 
 
 def git_commit() -> str | None:
@@ -31,6 +31,33 @@ def file_hash(source: str, n: int = 12) -> str | None:
     return None
 
 
+def compute_hash(specs: IOSpecList) -> IOSpecList:
+    return [replace(spec, hash=file_hash(spec.path)) for spec in specs]
+
+
+def get_expected_hashes(parent_path: str | None = None) -> dict[str, str | None]:
+    if parent_path is not None:
+        m = Manifest.load(parent_path)
+        return m.hash_dict
+    return {}
+
+
+def validate(specs: IOSpecList, parent: str | None) -> IOSpecList:
+    hashed = compute_hash(specs)
+    expected_hashes = get_expected_hashes(parent)
+    failures: list[str] = []
+    for spec in hashed:
+        if spec.needs_validate and expected_hashes.get(spec.path) != spec.hash:
+            failures.append(spec.path)
+    if failures:
+        raise ValidationError(f"{len(failures)} file fail hash validation: {', '.join(failures)}")
+    return hashed
+
+
+def asdict(specs: IOSpecList) -> dict[str, str | None]:
+    return {s.path: s.hash for s in specs}
+
+
 @dataclass
 class Manifest:
     dir: str
@@ -42,7 +69,7 @@ class Manifest:
     hash_dict: dict[str, str | None] = field(default_factory=dict)  # name -> hash
 
     def save(self) -> None:
-        (Path(self.dir) / "manifest.json").write_text(json.dumps(asdict(self), default=str, indent=2))
+        _ = (Path(self.dir) / "manifest.json").write_text(json.dumps(dataclasses.asdict(self), default=str, indent=2))
 
     @classmethod
     def load(cls, source: str) -> "Manifest":
@@ -56,48 +83,19 @@ def write_manifest(cfg: Config, input_spec: list[IOSpec]) -> None:
         created_at=datetime.now().isoformat(timespec="seconds"),
         git_commit=git_commit(),
         parent=cfg.parent_path,
-        hash_dict={b.path: b.hash for b in input_spec},
+        hash_dict=asdict(input_spec),
     ).save()
 
 
-def resolve_parent(current: Path) -> Path | None:
+def resolve_parent(current: str) -> str | None:
     """Given a current dir, find its parent one."""
     return Manifest.load(current).parent
 
 
-def update_manifest(current_path: str, outputs: list[str]) -> None:
+def update_manifest(output_spec: IOSpecList, current_path: str) -> None:
     manifest = Manifest.load(current_path)
-    for output in outputs:
-        hash = file_hash(output)
-        if hash is not None:
-            manifest.outputs[output] = hash
+    manifest.hash_dict.update(asdict(output_spec))
     manifest.save()
-
-
-def get_source_hashes(parent_path: str | None) -> dict[str, str]:
-    if parent_path is None:
-        return {}
-    manifest = Manifest.load(parent_path)
-    manifest.inputs.update(manifest.outputs)
-    return manifest.inputs
-
-
-def validate_inputs(source_hashes: dict[str, str], inputs: dict[str, bool]) -> dict[str, str]:
-    input_hashes = {}
-    for input, validate in inputs.items():
-        if validate:
-            source_hash = source_hashes.get(input, None)
-            if source_hash is None:
-                raise ValidationError(f"Input {input} does not has hash")
-            else:
-                hash = file_hash(input)
-                if hash != source_hash:
-                    raise ValidationError(f"Input {input} hash {hash} does not match expected {source_hash}")
-                else:
-                    input_hashes[input] = hash
-        else:
-            input_hashes[input] = None
-    return input_hashes
 
 
 class Runner:
@@ -105,22 +103,17 @@ class Runner:
         self.config: Config = config
         self.stage: Stage = stage
 
-    def setup(self):
+    def setup_manifest(self):
         inputs = self.stage.get_input_specs()
-        if self.config.parent_path is not None:
-            source_hashes = {}
-        else:
-            source_hashes = get_source_hashes(self.config.parent_path)
-        input_hashes = validate_inputs(source_hashes, inputs)
-        write_manifest(self.cfg, input_hashes)
+        hashed = validate(inputs, self.config.parent_path)
+        write_manifest(self.config, hashed)
 
-    # def after(self):
-    #     outputs = self.cfg.stage.get_outputs()
-    #     update_manifest(self.cfg.current_path, outputs)
+    def update_manifest(self):
+        outputs = self.stage.get_output_specs()
+        hashed = compute_hash(outputs)
+        update_manifest(hashed, self.config.current_path)
 
     def run(self) -> None:
-        # self.before()
-        # self.cfg.stage.run()
-        # self.after()
-        # cls = Stage(self.cfg,stage)
-        ...
+        self.setup_manifest()
+        self.stage.run()
+        self.update_manifest()
