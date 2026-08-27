@@ -1,0 +1,4 @@
+name: vocab_base
+
+input_path: data/owt_train.txt
+vocab_size: 32000

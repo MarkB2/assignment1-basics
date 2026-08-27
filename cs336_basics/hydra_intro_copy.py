@@ -29,7 +29,7 @@ def my_app(cfg: DictConfig) -> None:
     pprint(runner.config, indent=4)
     pprint(runner.stage.config, indent=4)
     # runner = Runner(config)
-    runner.run()
+    # runner.run()
 
 
 if __name__ == "__main__":

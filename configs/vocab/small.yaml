@@ -1,0 +1,4 @@
+    name: vocab_small
+    
+    input_path: data/TinyStoriesV2-GPT4-valid.txt
+    vocab_size: 300

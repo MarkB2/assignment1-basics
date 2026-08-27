@@ -1,17 +1,11 @@
+defaults:
+  - _self_
+  - config: vocab/base
+  
 _target_: cs336_basics.stages.VocabStage
 config:
   _target_: cs336_basics.config.VocabConfig
-  name: vocab_small
-  #     source:
-  #         path:
-  #         # hash: null
-  # outputs:
-  #     vocab:
-  #         path:
-
-  input_path: data/TinyStoriesV2-GPT4-train.txt
   vocab_path: ${config.current_path}/vocab.json
-  vocab_size: 500
   special_tokens:
     - <|endoftext|>
   num_workers: 4
